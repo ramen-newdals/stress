@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<!DOCTYPE Xdmf SYSTEM "Xdmf.dtd" []>
+<Xdmf Version="3.0" xmlns:xi="http://www.w3.org/2001/XInclude">
+<Domain>
+    <Grid Name="TimeSeries" GridType="Collection" CollectionType="Temporal">
+        <Grid Name="mesh" GridType="Uniform">
+        <Topology NumberOfElements="1262194" TopologyType="Tetrahedron" NodesPerElement="4">
+            <DataItem Dimensions="1262194 4" NumberType="UInt" Format="HDF">p302_edited_cl_pr.h5:/Mesh/topology</DataItem>
+        </Topology>
+        <Geometry GeometryType="XYZ">
+            <DataItem Dimensions="216955 3" Format="HDF">p302_edited_cl_pr.h5:/Mesh/coordinates</DataItem>
+        </Geometry>
+        </Grid>
+      <Grid Name="Step-009900">
+	<xi:include xpointer="xpointer(//Grid[@Name=&quot;TimeSeries&quot;]/Grid[1]/*[self::Topology or self::Geometry])" />
+        <Time Value="980.719" />
+        <Attribute Name="u" AttributeType="Vector" Center="Node">
+          <DataItem Dimensions="216955 3" Format="HDF">art_p302_edited_cl_pr_I2_FC_MCA_10_Q285_Per951_Newt370_ts9600_cy2_uO1_curcyc_1_t=0980.7187_ts=00009900_up.h5:/Solution/u</DataItem>
+        </Attribute>
+        <Attribute Name="p" AttributeType="Scalar" Center="Node">
+          <DataItem Dimensions="216955 1" Format="HDF">art_p302_edited_cl_pr_I2_FC_MCA_10_Q285_Per951_Newt370_ts9600_cy2_uO1_curcyc_1_t=0980.7187_ts=00009900_up.h5:/Solution/p</DataItem>
+        </Attribute>
+      </Grid>
+    </Grid>
+</Domain>
+</Xdmf>
