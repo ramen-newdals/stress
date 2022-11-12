@@ -1,2 +1,0 @@
-/home/ramen_newdals/Documents/BSL/stress/build/CMakeFiles/edit_cache.dir
-/home/ramen_newdals/Documents/BSL/stress/build/CMakeFiles/rebuild_cache.dir

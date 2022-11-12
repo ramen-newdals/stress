@@ -13,13 +13,13 @@ public:
     std::string verticies_dataset {"coordinates"};
     std::string cells_dataset {"topology"};
     int RANK{2}, DIM0{216955}, DIM1{3}, DIM2{126194}, DIM3{4};
-    double verticies[216955][3];
-
+    double** verticies = NULL;
+    verticies = new double[216955][3];
     void coolSaying()
     {
         std::cout << "Testing" << std::endl;
     }
-    int readMesh()
+    int readVerticies()
     {
         H5::H5File file(file_name, H5F_ACC_RDONLY);
         hsize_t dims[2];
@@ -43,7 +43,9 @@ public:
         return 0;
     }
 
-    void printRdata()
+
+
+    void printVerticies()
     {
         for(int i = 0; i<DIM0; i++){
             for(int j = 0; j<DIM1; j++){
@@ -52,13 +54,50 @@ public:
             std::cout << std::endl;
         }
     }
+
+    void creaeCells()
+    {
+        // Crreates cell mapping from memory
+    }
+};
+
+class shapeFunctions
+{
+public:
+    shapeFunctions();
+    ~shapeFunctions();
+    
+};
+
+class quadrature
+{
+public:
+    quadrature();
+    ~quadrature();
+    
+};
+
+class gradiant
+{
+public:
+    gradiant();
+    ~gradiant();
+    
+};
+
+class linearSystem
+{
+public:
+    linearSystem();
+    ~linearSystem();
+    
 };
 
 int main(void){
     meshReader mesh1;
     mesh1.coolSaying();
-    mesh1.readMesh();
-    mesh1.printRdata();
+    mesh1.readVerticies();
+    mesh1.printVerticies();
     std::cout << "HDF5 Api is hell to use" << std::endl;
     return 0; // successfully terminated
 
