@@ -12,8 +12,9 @@ public:
     std::string group_name {"Mesh"};
     std::string verticies_dataset {"coordinates"};
     std::string cells_dataset {"topology"};
-    int RANK{2}, DIM0{216955}, DIM1{3}, DIM2{126194}, DIM3{4};
+    int RANK{2}, DIM0{216955}, DIM1{3}, DIM2{1262194}, DIM3{4};
     double *verticies = new double[216955*3];
+    double *cells = new double[DIM2*DIM3];
 
     //verticies = double[216955][3];
     void coolSaying()
@@ -44,7 +45,29 @@ public:
         return 0;
     }
 
+    int readCells()
+    {
+        H5::H5File file(file_name, H5F_ACC_RDONLY);
+        hsize_t dims[2];
+        dims[0] = DIM2;
+        dims[1] = DIM3;
 
+        H5::DataSpace dataspace = H5::DataSpace(RANK, dims);
+        H5::Group solution;
+        H5::DataSet dataset;
+
+        file.openFile(file_name, H5F_ACC_RDONLY);
+        solution = file.openGroup(group_name);
+        dataset = solution.openDataSet(cells_dataset);
+        dataset.read(cells, H5T_NATIVE_DOUBLE);
+        
+        dataset.close();
+        solution.close();
+        dataspace.close();
+        file.close();
+
+        return 0;
+    }
 
     void printVerticies()
     {
@@ -55,11 +78,17 @@ public:
             std::cout << std::endl;
         }
     }
-
-    void creaeCells()
+    
+    void printCells()
     {
-        // Crreates cell mapping from memory
+        for(int i = 0; i<DIM2; i++){
+            for(int j = 0; j<DIM3; j++){
+                std::cout << cells[(i*DIM1)+j] << " ";
+            }
+            std::cout << std::endl;
+        }
     }
+
 };
 
 class shapeFunctions
@@ -98,7 +127,9 @@ int main(void){
     meshReader mesh1;
     mesh1.coolSaying();
     mesh1.readVerticies();
-    mesh1.printVerticies();
+    mesh1.readCells();
+    mesh1.printCells();
+    //mesh1.printVerticies();
     std::cout << "HDF5 Api is hell to use" << std::endl;
     return 0; // successfully terminated
 }
