@@ -12,15 +12,20 @@ public:
     std::string group_name {"Mesh"};
     std::string verticies_dataset {"coordinates"};
     std::string cells_dataset {"topology"};
+    
+    meshReader(){};
+    ~meshReader(){};
+    //TODO: Change these array dimension names to something more meaningfull
     int RANK{2}, DIM0{216955}, DIM1{3}, DIM2{1262194}, DIM3{4};
-    double *verticies = new double[216955*3];
+    double *verticies = new double[DIM0*DIM1];
     double *cells = new double[DIM2*DIM3];
 
     //verticies = double[216955][3];
     void coolSaying()
     {
-        std::cout << "Testing" << std::endl;
+        std::cout << "we are in the beam" << std::endl;
     }
+    
     int readVerticies()
     {
         H5::H5File file(file_name, H5F_ACC_RDONLY);
