@@ -5,12 +5,6 @@
 #include <stdlib.h>
 #include "H5Cpp.h"
 
-// Deffine type that contains a row of the mesh.h5
-typedef struct mytype_t{
-    std::vector<double> point;
-    hvl_t pointsHandle;
-} mytype_t;
-
 class meshReader
 {
 public:
@@ -19,7 +13,8 @@ public:
     std::string verticies_dataset {"coordinates"};
     std::string cells_dataset {"topology"};
     int RANK{2}, DIM0{216955}, DIM1{3}, DIM2{126194}, DIM3{4};
-    double verticies[216955][3];
+    double *verticies = new double[216955*3];
+
     //verticies = double[216955][3];
     void coolSaying()
     {
@@ -55,7 +50,7 @@ public:
     {
         for(int i = 0; i<DIM0; i++){
             for(int j = 0; j<DIM1; j++){
-                std::cout << verticies[i][j] << " ";
+                std::cout << verticies[(i*DIM1)+j] << " ";
             }
             std::cout << std::endl;
         }
@@ -106,5 +101,18 @@ int main(void){
     mesh1.printVerticies();
     std::cout << "HDF5 Api is hell to use" << std::endl;
     return 0; // successfully terminated
-
 }
+
+/*
+READ IN MESH VALUES:
+====================
+1.32717 8.77653 57.4528
+0.444988 8.84156 57.832
+
+
+REAL MESH VALUES:
+=================
+1.32717, 8.77653, 57.4528,
+0.444988, 8.84156, 57.832
+*/
+
