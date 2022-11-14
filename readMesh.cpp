@@ -5,16 +5,22 @@
 #include <stdlib.h>
 #include "H5Cpp.h"
 
+// Deffine type that contains a row of the mesh.h5
+typedef struct mytype_t{
+    std::vector<double> point;
+    hvl_t pointsHandle;
+} mytype_t;
+
 class meshReader
 {
 public:
-    std::string file_name {"mesh.h5"};
+    std::string file_name {"/home/ramen_newdals/Documents/BSL/stress/mesh.h5"};
     std::string group_name {"Mesh"};
     std::string verticies_dataset {"coordinates"};
     std::string cells_dataset {"topology"};
     int RANK{2}, DIM0{216955}, DIM1{3}, DIM2{126194}, DIM3{4};
-    double** verticies = NULL;
-    verticies = new double[216955][3];
+    double verticies[216955][3];
+    //verticies = double[216955][3];
     void coolSaying()
     {
         std::cout << "Testing" << std::endl;
