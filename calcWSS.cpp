@@ -1,24 +1,3 @@
-/*=========================================================================
-
-Program:   VMTK
-Module:    $RCSfile: vtkvmtkMeshWallShearRate.cxx,v $
-Language:  C++
-Date:      $Date: 2020/02/17 10:20:00 $
-Version:   $Revision: 2.0 $
-
-  Copyright (c) Luca Antiga, David Steinman. All rights reserved.
-  See LICENSE file for details.
-
-  Portions of this code are covered under the VTK copyright.
-  See VTKCopyright.txt or http://www.kitware.com/VTKCopyright.htm 
-  for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even 
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
-     PURPOSE.  See the above copyright notices for more information.
-
-=========================================================================*/
-
 #include "vtkvmtkMeshWallShearRate.h"
 
 #include "vtkvmtkUnstructuredGridGradientFilter.h"
