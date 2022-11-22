@@ -24,17 +24,15 @@ INCLUDE_DIRECTORIES (${HDF5_INCLUDE_DIR})
 
 #=========VTK CONFIGURATION ========================
 find_package(VTK COMPONENTS 
-  #CommonColor
+  CommonColor
   CommonCore
   CommonDataModel
-  #FiltersSources
-  #InteractionStyle
-  #RenderingContextOpenGL2
-  #RenderingCore
-  #RenderingFreeType
-  #RenderingGL2PSOpenGL2
-  #RenderingLabel
-  #RenderingOpenGL2
+  InteractionStyle
+  RenderingContextOpenGL2
+  RenderingCore
+  RenderingFreeType
+  RenderingGL2PSOpenGL2
+  RenderingOpenGL2
 )
 
 set (LINK_LIBS ${LINK_LIBS} ${VTK_LIBRARIES})

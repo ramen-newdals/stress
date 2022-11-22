@@ -1,4 +1,4 @@
-+#include "gq.h"
+#include "gq.h"
 #include "vtkObjectFactory.h"
 #include "vtkCellType.h"
 #include "vtkTetra.h"
