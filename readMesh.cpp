@@ -132,91 +132,79 @@ public:
         // Extracts all boundary nodes and cells
     }
 
-    void plotMesh()
+    int plotMesh()
     {
+        vtkNew<vtkNamedColors> colors;
 
+        vtkNew<vtkPoints> points;
+
+        for(int i = 0; i<verticies_dim0; i++)
+        {points->InsertNextPoint(std::get<0>(verticie_vector[i]), std::get<1>(verticie_vector[i]), std::get<2>(verticie_vector[i]));}
+        
+        // Method 1
+        vtkNew<vtkUnstructuredGrid> unstructuredGrid1;
+        unstructuredGrid1->SetPoints(points);
+
+        // for(int i =  0; cells_dim0; i++)
+        // {
+        //     vtkIdType ptIds[4];
+        //     ptIds[0] = std::get<0>(cell_vector[i]);
+        //     ptIds[1] = std::get<1>(cell_vector[i]);
+        //     ptIds[2] = std::get<2>(cell_vector[i]);
+        //     ptIds[3] = std::get<3>(cell_vector[i]);
+        //     unstructuredGrid1->InsertNextCell(VTK_TETRA, 4, ptIds);       
+        // }
+        // Create a mapper and actor
+
+        
+
+        vtkIdType ptIds[4];
+        ptIds[0] = 808;
+        ptIds[1] = 110;
+        ptIds[2] = 420;
+        ptIds[3] = 187;
+
+        vtkIdType ptIds2[4];
+        ptIds2[0] = 187;
+        ptIds2[1] = 420;
+        ptIds2[2] = 808;
+        ptIds2[3] = 110;
+
+        unstructuredGrid1->InsertNextCell(VTK_TETRA, 4, ptIds); 
+
+
+        unstructuredGrid1->InsertNextCell(VTK_TETRA, 4, ptIds2);   
+
+        vtkNew<vtkDataSetMapper> mapper1;
+        mapper1->SetInputData(unstructuredGrid1);
+
+        vtkNew<vtkActor> actor1;
+        actor1->SetMapper(mapper1);
+        actor1->GetProperty()->SetColor(colors->GetColor3d("Cyan").GetData());
+
+        // Create a renderer, render window, and interactor
+        vtkNew<vtkRenderer> renderer;
+        vtkNew<vtkRenderWindow> renderWindow;
+        renderWindow->SetWindowName("Tetrahedron");
+        renderWindow->AddRenderer(renderer);
+        vtkNew<vtkRenderWindowInteractor> renderWindowInteractor;
+        renderWindowInteractor->SetRenderWindow(renderWindow);
+
+        // Add the actor to the scene
+        renderer->AddActor(actor1);
+        renderer->SetBackground(colors->GetColor3d("DarkGreen").GetData());
+        renderer->ResetCamera();
+        renderer->GetActiveCamera()->Azimuth(-10);
+        renderer->GetActiveCamera()->Elevation(-20);
+
+        // Render and interact
+        renderWindow->Render();
+        renderWindowInteractor->Start();
+
+        return EXIT_SUCCESS;
     }
 
 };
-
-
-
-int plotTet()
-{
-    vtkNew<vtkNamedColors> colors;
-
-    vtkNew<vtkPoints> points;
-    points->InsertNextPoint(0, 0, 0);
-    points->InsertNextPoint(1, 0, 0);
-    points->InsertNextPoint(1, 1, 0);
-    points->InsertNextPoint(0, 1, 1);
-
-    points->InsertNextPoint(2, 2, 2);
-    points->InsertNextPoint(3, 2, 2);
-    points->InsertNextPoint(3, 3, 2);
-    points->InsertNextPoint(2, 3, 3);
-
-    // Method 1
-    vtkNew<vtkUnstructuredGrid> unstructuredGrid1;
-    unstructuredGrid1->SetPoints(points);
-
-    vtkIdType ptIds[] = {0, 1, 2, 3};
-    unstructuredGrid1->InsertNextCell(VTK_TETRA, 4, ptIds);
-
-    // Method 2
-    vtkNew<vtkUnstructuredGrid> unstructuredGrid2;
-    unstructuredGrid2->SetPoints(points);
-
-    vtkNew<vtkTetra> tetra;
-
-    tetra->GetPointIds()->SetId(0, 4);
-    tetra->GetPointIds()->SetId(1, 5);
-    tetra->GetPointIds()->SetId(2, 6);
-    tetra->GetPointIds()->SetId(3, 7);
-
-    vtkNew<vtkCellArray> cellArray;
-    cellArray->InsertNextCell(tetra);
-    unstructuredGrid2->SetCells(VTK_TETRA, cellArray);
-
-    // Create a mapper and actor
-    vtkNew<vtkDataSetMapper> mapper1;
-    mapper1->SetInputData(unstructuredGrid1);
-
-    vtkNew<vtkActor> actor1;
-    actor1->SetMapper(mapper1);
-    actor1->GetProperty()->SetColor(colors->GetColor3d("Cyan").GetData());
-
-    // Create a mapper and actor
-    vtkNew<vtkDataSetMapper> mapper2;
-    mapper2->SetInputData(unstructuredGrid2);
-
-    vtkNew<vtkActor> actor2;
-    actor2->SetMapper(mapper2);
-    actor2->GetProperty()->SetColor(colors->GetColor3d("Yellow").GetData());
-
-    // Create a renderer, render window, and interactor
-    vtkNew<vtkRenderer> renderer;
-    vtkNew<vtkRenderWindow> renderWindow;
-    renderWindow->SetWindowName("Tetrahedron");
-    renderWindow->AddRenderer(renderer);
-    vtkNew<vtkRenderWindowInteractor> renderWindowInteractor;
-    renderWindowInteractor->SetRenderWindow(renderWindow);
-
-    // Add the actor to the scene
-    renderer->AddActor(actor1);
-    renderer->AddActor(actor2);
-    renderer->SetBackground(colors->GetColor3d("DarkGreen").GetData());
-    renderer->ResetCamera();
-    renderer->GetActiveCamera()->Azimuth(-10);
-    renderer->GetActiveCamera()->Elevation(-20);
-
-    // Render and interact
-    renderWindow->Render();
-    renderWindowInteractor->Start();
-
-    return EXIT_SUCCESS;
-}
-
 
 int main(void){
     meshReader mesh1;
@@ -226,9 +214,8 @@ int main(void){
     //mesh1.printCells();
     //mesh1.printVerticies();
     std::cout << "HDF5 Api is hell to use" << std::endl;
-    mesh1.plotMesh();
-    //int testing;
-    //testing = plotTet();
+    int testing;
+    testing = mesh1.plotMesh();
     
     return 0; // successfully terminated
 }
