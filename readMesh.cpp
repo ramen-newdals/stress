@@ -170,10 +170,14 @@ public:
         ptIds2[2] = 808;
         ptIds2[3] = 110;
 
+        vtkIdType numCells = 2;
+        vtkIdType connectivitySize = 8;
+
+        unstructuredGrid1->AllocateExact(numCells, connectivitySize);
         unstructuredGrid1->InsertNextCell(VTK_TETRA, 4, ptIds); 
 
 
-        unstructuredGrid1->InsertNextCell(VTK_TETRA, 4, ptIds2);   
+        //unstructuredGrid1->InsertNextCell(VTK_TETRA, 4, ptIds2);   
 
         vtkNew<vtkDataSetMapper> mapper1;
         mapper1->SetInputData(unstructuredGrid1);

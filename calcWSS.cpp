@@ -135,52 +135,48 @@ int vtkvmtkMeshWallShearRate::RequestData(
       }
     }
   else
+  {
+
+  /**********************************************************************
+    Calculate strain rate tensor: E = 0.5 * (\nabla u + (\nabla u)^T)
+    Calculate wall shear rate vector: tau = -2 * E*n * (1-n^T*n)
+    Reference: Matyka et al., http://dx.doi.org/10.1016/j.compfluid.2012.12.018
+  **********************************************************************/
+  double normalShear, shearVector[3], strainRateTensor[9];
+  for (i=0; i<numberOfPoints; i++)
+  {
+    // compute strain rate tensor
+    velocityGradientArray->GetTuple(i,velocityGradient);
+    for (j=0; j<3; j++)
     {
-
-    /**********************************************************************
-      Calculate strain rate tensor: E = 0.5 * (\nabla u + (\nabla u)^T)
-      Calculate wall shear rate vector: tau = -2 * E*n * (1-n^T*n)
-      Reference: Matyka et al., http://dx.doi.org/10.1016/j.compfluid.2012.12.018
-    **********************************************************************/
-
-    double normalShear, shearVector[3], strainRateTensor[9];
-
-    for (i=0; i<numberOfPoints; i++)
+      for (k=0; k<3; k++)
       {
-
-      // compute strain rate tensor
-      velocityGradientArray->GetTuple(i,velocityGradient);
-      for (j=0; j<3; j++)
-        {
-	for (k=0; k<3; k++)
-          {
-	  strainRateTensor[3*j + k] = 0.5 * (velocityGradient[3*j + k] + velocityGradient[3*k + j]);
-	  }
-        }
-
-      // compute shear rate vector and normal projection
-      normalsArray->GetTuple(i,normal);
-      normalShear = 0.0;
-      for (j=0; j<3; j++)
-        {
-	shearVector[j] = 0.0;
-	for (k=0; k<3; k++)
-          {
-	  shearVector[j] += strainRateTensor[3*j + k] * normal[k];
-	  }
-	normalShear += shearVector[j] * normal[j];
-        }
-
-      // compute wall shear rate
-      for (j=0; j<3; j++)
-        {
-	// sign due to normals pointing outwards
-	wallShearRate[j] = -2.0 * (shearVector[j] - normalShear*normal[j]);
-        }
-
-      wallShearRateArray->SetTuple(i,wallShearRate);
+        strainRateTensor[3*j + k] = 0.5 * (velocityGradient[3*j + k] + velocityGradient[3*k + j]);
       }
     }
+
+    // compute shear rate vector and normal projection
+    normalsArray->GetTuple(i,normal);
+    normalShear = 0.0;
+    for (j=0; j<3; j++)
+    {
+      shearVector[j] = 0.0;
+      for (k=0; k<3; k++)
+      {
+        shearVector[j] += strainRateTensor[3*j + k] * normal[k];
+      }
+      normalShear += shearVector[j] * normal[j];
+    }
+
+    // compute wall shear rate
+    for (j=0; j<3; j++)
+    {
+      // sign due to normals pointing outwards
+      wallShearRate[j] = -2.0 * (shearVector[j] - normalShear*normal[j]);
+    }
+    wallShearRateArray->SetTuple(i,wallShearRate);
+    }
+  }
 
   output->DeepCopy(outputSurface);
   output->GetPointData()->AddArray(wallShearRateArray);
