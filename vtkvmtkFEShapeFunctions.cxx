@@ -1,3 +1,24 @@
+/*=========================================================================
+
+  Program:   VMTK
+  Module:    $RCSfile: vtkvmtkFEShapeFunctions.cxx,v $
+  Language:  C++
+  Date:      $Date: 2005/11/15 17:39:25 $
+  Version:   $Revision: 1.3 $
+
+  Copyright (c) Luca Antiga, David Steinman. All rights reserved.
+  See LICENSE file for details.
+
+  Portions of this code are covered under the VTK copyright.
+  See VTKCopyright.txt or http://www.kitware.com/VTKCopyright.htm 
+  for details.
+
+     This software is distributed WITHOUT ANY WARRANTY; without even 
+     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+     PURPOSE.  See the above copyright notices for more information.
+
+=========================================================================*/
+
 #include "vtkvmtkFEShapeFunctions.h"
 #include "vtkObjectFactory.h"
 #include "vtkCellType.h"
