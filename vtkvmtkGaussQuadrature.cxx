@@ -1,12 +1,73 @@
-#include "gq.h"
+/*=========================================================================
+
+  Program:   VMTK
+  Module:    $RCSfile: vtkvmtkGaussQuadrature.cxx,v $
+  Language:  C++
+  Date:      $Date: 2005/11/15 17:39:25 $
+  Version:   $Revision: 1.3 $
+
+  Copyright (c) Luca Antiga, David Steinman. All rights reserved.
+  See LICENSE file for details.
+
+  Portions of this code are covered under the VTK copyright.
+  See VTKCopyright.txt or http://www.kitware.com/VTKCopyright.htm 
+  for details.
+
+     This software is distributed WITHOUT ANY WARRANTY; without even 
+     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR 
+     PURPOSE.  See the above copyright notices for more information.
+
+=========================================================================*/
+
+#include "vtkvmtkGaussQuadrature.h"
 #include "vtkObjectFactory.h"
 #include "vtkCellType.h"
+#include "vtkLine.h"
+#include "vtkQuadraticEdge.h"
+#include "vtkQuad.h"
+#include "vtkQuadraticQuad.h"
+#include "vtkBiQuadraticQuad.h"
+#include "vtkTriangle.h"
+#include "vtkQuadraticTriangle.h"
+#include "vtkHexahedron.h"
+#include "vtkQuadraticHexahedron.h"
+#include "vtkTriQuadraticHexahedron.h"
+#include "vtkWedge.h"
+#include "vtkQuadraticWedge.h"
 #include "vtkTetra.h"
 #include "vtkQuadraticTetra.h"
 #include "vtkMath.h"
 
-// vtkStandardNewMacro(gq);
-void gq::Initialize(vtkIdType cellType)
+vtkStandardNewMacro(vtkvmtkGaussQuadrature);
+
+
+vtkvmtkGaussQuadrature::vtkvmtkGaussQuadrature()
+{
+  this->QuadraturePoints = NULL;
+  this->QuadratureWeights = NULL;
+
+  this->Order = 1;
+  this->PreviousOrder = 0;
+ 
+  this->CellType = VTK_EMPTY_CELL;
+}
+
+vtkvmtkGaussQuadrature::~vtkvmtkGaussQuadrature()
+{
+  if (this->QuadraturePoints)
+  {
+    this->QuadraturePoints->Delete();
+    this->QuadraturePoints = NULL;
+  }
+
+  if (this->QuadratureWeights)
+  {
+    this->QuadratureWeights->Delete();
+    this->QuadratureWeights = NULL;
+  }
+}
+
+void vtkvmtkGaussQuadrature::Initialize(vtkIdType cellType)
 {
   if ((cellType == this->CellType) && (this->Order == this->PreviousOrder))
   {
@@ -32,6 +93,78 @@ void gq::Initialize(vtkIdType cellType)
   
   switch(cellType)
   {
+    case VTK_LINE:
+    case VTK_QUADRATIC_EDGE:
+    {
+      this->QuadraturePoints->SetNumberOfComponents(1);
+      this->Initialize1DGauss();
+      break;
+    }
+    case VTK_QUAD:
+    case VTK_QUADRATIC_QUAD:
+    case VTK_BIQUADRATIC_QUAD:
+    {
+      vtkvmtkGaussQuadrature* q1D = vtkvmtkGaussQuadrature::New();
+      q1D->SetOrder(this->Order);
+      q1D->Initialize1DGauss();
+      this->TensorProductQuad(q1D);
+      q1D->Delete(); 
+      break;
+    }
+    case VTK_TRIANGLE:
+    case VTK_QUADRATIC_TRIANGLE:
+    {
+      if (this->Order == 0 || this->Order ==1)
+      {
+        this->QuadraturePoints->SetNumberOfComponents(2);
+        this->QuadraturePoints->SetNumberOfTuples(1);
+        this->QuadratureWeights->SetNumberOfTuples(1);
+        double point[2];
+        double weight;
+        point[0] = 0.33333333333333333333333333333333;
+        point[1] = 0.33333333333333333333333333333333;
+        weight = 0.5;
+        this->QuadraturePoints->SetTuple(0,point);
+        this->QuadratureWeights->SetValue(0,weight);
+        break;
+      }
+      vtkvmtkGaussQuadrature* gauss1D = vtkvmtkGaussQuadrature::New();
+      gauss1D->SetOrder(this->Order);
+      gauss1D->Initialize1DGauss();
+      vtkvmtkGaussQuadrature* jacA1D = vtkvmtkGaussQuadrature::New();
+      jacA1D->SetOrder(this->Order);
+      jacA1D->Initialize1DJacobi(1,0);
+      this->TensorProductTriangle(gauss1D,jacA1D);
+      gauss1D->Delete();
+      jacA1D->Delete();
+      break;
+    }
+    case VTK_HEXAHEDRON:
+    case VTK_QUADRATIC_HEXAHEDRON:
+    case VTK_TRIQUADRATIC_HEXAHEDRON:
+    {
+      vtkvmtkGaussQuadrature* q1D = vtkvmtkGaussQuadrature::New();
+      q1D->SetOrder(this->Order);
+      q1D->Initialize1DGauss();
+      this->TensorProductHexahedron(q1D);
+      q1D->Delete(); 
+      break;
+    }
+    case VTK_WEDGE:
+    case VTK_QUADRATIC_WEDGE:
+    case VTK_BIQUADRATIC_QUADRATIC_WEDGE:
+    {
+      vtkvmtkGaussQuadrature* q1D = vtkvmtkGaussQuadrature::New();
+      q1D->SetOrder(this->Order);
+      q1D->Initialize1DGauss();
+      vtkvmtkGaussQuadrature* q2D = vtkvmtkGaussQuadrature::New();
+      q2D->SetOrder(this->Order);
+      q2D->Initialize(VTK_TRIANGLE);
+      this->TensorProductWedge(q1D,q2D);
+      q1D->Delete();
+      q2D->Delete();
+      break;
+    }
     case VTK_TETRA:
     case VTK_QUADRATIC_TETRA:
     {
@@ -50,37 +183,34 @@ void gq::Initialize(vtkIdType cellType)
         this->QuadratureWeights->SetValue(0,weight);
         break;
       }
-      /*
-      Code bellow is default VMTK stuff, will need to re-weite it 
-      gq gauss1D;
-      gauss1D.SetOrder(this->Order);
-      gauss1D.Initialize1DGauss();
-      gq jacA1D;
-      jacA1D.SetOrder(this->Order);
-      jacA1D.Initialize1DJacobi(1,0);
-      gq jacB1D;
-      jacB1D.SetOrder(this->Order);
-      jacB1D.Initialize1DJacobi(2,0);
+      vtkvmtkGaussQuadrature* gauss1D = vtkvmtkGaussQuadrature::New();
+      gauss1D->SetOrder(this->Order);
+      gauss1D->Initialize1DGauss();
+      vtkvmtkGaussQuadrature* jacA1D = vtkvmtkGaussQuadrature::New();
+      jacA1D->SetOrder(this->Order);
+      jacA1D->Initialize1DJacobi(1,0);
+      vtkvmtkGaussQuadrature* jacB1D = vtkvmtkGaussQuadrature::New();
+      jacB1D->SetOrder(this->Order);
+      jacB1D->Initialize1DJacobi(2,0);
       this->TensorProductTetra(gauss1D,jacA1D,jacB1D);
-      gauss1D.Delete();
-      jacA1D.Delete();
-      jacB1D.Delete();
-      */
+      gauss1D->Delete();
+      jacA1D->Delete();
+      jacB1D->Delete();
       break;
     }
     default:
     {
-      std::cout << ("Unsupported element for Gauss quadrature.") << std::endl;
+      vtkErrorMacro("Unsupported element for Gauss quadrature.");
       return;
     }
   }
 }
 
-void gq::ScaleTo01()
+void vtkvmtkGaussQuadrature::ScaleTo01()
 {
   if (this->QuadraturePoints->GetNumberOfComponents() != 1)
   {
-    std::cout << ("Error: scaling assumes Dimensionality == 1.") << std::endl;
+    vtkErrorMacro("Error: scaling assumes Dimensionality == 1.");
     return;
   }
  
@@ -100,7 +230,7 @@ void gq::ScaleTo01()
   }
 }
 
-void gq::Initialize1DGauss()
+void vtkvmtkGaussQuadrature::Initialize1DGauss()
 {
   if (this->QuadraturePoints)
   {
@@ -902,7 +1032,7 @@ void gq::Initialize1DGauss()
 
     default:
     {
-      std::cout << ("Quadrature rule not supported.") << std::endl;
+      vtkErrorMacro("Quadrature rule not supported.");
       return; 
     }
   }
@@ -910,7 +1040,7 @@ void gq::Initialize1DGauss()
   this->ScaleTo01();
 }
 
-void gq::Initialize1DJacobi(int alpha, int beta)
+void vtkvmtkGaussQuadrature::Initialize1DJacobi(int alpha, int beta)
 {
   if (this->QuadraturePoints)
   {
@@ -1702,7 +1832,7 @@ void gq::Initialize1DJacobi(int alpha, int beta)
       }                                             
       default:
       {
-        std::cout << ("Error: quadrature rule not supported.") << std::endl;
+        vtkErrorMacro("Error: quadrature rule not supported.");
         return;
       }
     }
@@ -2483,28 +2613,156 @@ void gq::Initialize1DJacobi(int alpha, int beta)
       }
       default:
       {
-        std::cout << ("Quadrature rule not supported.") << std::endl;
+        vtkErrorMacro("Quadrature rule not supported.");
         return; 
       }
     }
   }
   else
   {
-    std::cout << ("Unsupported combination of Alpha and Beta.") << std::endl;
+    vtkErrorMacro("Unsupported combination of Alpha and Beta.");
     return; 
   }
 }
- 
-void gq::TensorProductTetra(gq* gauss1D, gq* jacA1D, gq* jacB1D)
+
+void vtkvmtkGaussQuadrature::TensorProductQuad(vtkvmtkGaussQuadrature* q1D)
+{
+  int numberOf1DQuadraturePoints = q1D->GetNumberOfQuadraturePoints();
+
+  this->QuadraturePoints->SetNumberOfComponents(2);
+  this->QuadraturePoints->SetNumberOfTuples(numberOf1DQuadraturePoints * numberOf1DQuadraturePoints);
+  this->QuadratureWeights->SetNumberOfTuples(numberOf1DQuadraturePoints * numberOf1DQuadraturePoints);
+
+  double point[3];
+  double weight;
+  int id;
+  int i, j;
+  for (j=0; j<numberOf1DQuadraturePoints; j++)
+  {
+    for (i=0; i<numberOf1DQuadraturePoints; i++)
+    {
+      id = j * numberOf1DQuadraturePoints + i;
+        
+      point[0] = q1D->GetQuadraturePoint(i)[0];
+      point[1] = q1D->GetQuadraturePoint(j)[0];
+      point[2] = 0.0;
+
+      weight = q1D->GetQuadratureWeight(i) * q1D->GetQuadratureWeight(j);
+      
+      this->QuadraturePoints->SetTuple(id,point);
+      this->QuadratureWeights->SetValue(id,weight);
+    }
+  }
+}
+  
+void vtkvmtkGaussQuadrature::TensorProductTriangle(vtkvmtkGaussQuadrature* gauss1D, vtkvmtkGaussQuadrature* jacA1D)
 {
   if (gauss1D->GetNumberOfQuadraturePoints() != jacA1D->GetNumberOfQuadraturePoints())
   {
-    std::cout << ("Error: cannot build tensor product rule if rules have different order.") << std::endl;
+    vtkErrorMacro("Error: cannot build tensor product rule if rules have different order.");
+  }
+
+  int numberOf1DQuadraturePoints = gauss1D->GetNumberOfQuadraturePoints();
+
+  this->QuadraturePoints->SetNumberOfComponents(2);
+  this->QuadraturePoints->SetNumberOfTuples(numberOf1DQuadraturePoints * numberOf1DQuadraturePoints);
+  this->QuadratureWeights->SetNumberOfTuples(numberOf1DQuadraturePoints * numberOf1DQuadraturePoints);
+
+  double point[2];
+  double weight;
+  int id;
+  int i, j;
+  for (j=0; j<numberOf1DQuadraturePoints; j++)
+  {
+    for (i=0; i<numberOf1DQuadraturePoints; i++)
+    {
+      id = j * numberOf1DQuadraturePoints + i;
+        
+      point[0] = jacA1D->GetQuadraturePoint(j)[0];
+      point[1] = gauss1D->GetQuadraturePoint(i)[0] * (1.0 - jacA1D->GetQuadraturePoint(j)[0]);
+
+      weight = gauss1D->GetQuadratureWeight(i) * jacA1D->GetQuadratureWeight(j);
+      
+      this->QuadraturePoints->SetTuple(id,point);
+      this->QuadratureWeights->SetValue(id,weight);
+    }
+  }
+}
+
+void vtkvmtkGaussQuadrature::TensorProductHexahedron(vtkvmtkGaussQuadrature* q1D)
+{
+  int numberOf1DQuadraturePoints = q1D->GetNumberOfQuadraturePoints();
+
+  this->QuadraturePoints->SetNumberOfComponents(3);
+  this->QuadraturePoints->SetNumberOfTuples(numberOf1DQuadraturePoints * numberOf1DQuadraturePoints * numberOf1DQuadraturePoints);
+  this->QuadratureWeights->SetNumberOfTuples(numberOf1DQuadraturePoints * numberOf1DQuadraturePoints * numberOf1DQuadraturePoints);
+
+  double point[3];
+  double weight;
+  int id;
+  int i, j, k;
+  for (k=0; k<numberOf1DQuadraturePoints; k++)
+  {
+    for (j=0; j<numberOf1DQuadraturePoints; j++)
+    {
+      for (i=0; i<numberOf1DQuadraturePoints; i++)
+      {
+        id = k * numberOf1DQuadraturePoints * numberOf1DQuadraturePoints + j * numberOf1DQuadraturePoints + i;
+          
+        point[0] = q1D->GetQuadraturePoint(i)[0];
+        point[1] = q1D->GetQuadraturePoint(j)[0];
+        point[2] = q1D->GetQuadraturePoint(k)[0];
+  
+        weight = q1D->GetQuadratureWeight(i) * q1D->GetQuadratureWeight(j) * q1D->GetQuadratureWeight(k);
+        
+        this->QuadraturePoints->SetTuple(id,point);
+        this->QuadratureWeights->SetValue(id,weight);
+      }
+    }
+  }
+}
+  
+void vtkvmtkGaussQuadrature::TensorProductWedge(vtkvmtkGaussQuadrature* q1D, vtkvmtkGaussQuadrature* q2D)
+{
+  int numberOf1DQuadraturePoints = q1D->GetNumberOfQuadraturePoints();
+  int numberOf2DQuadraturePoints = q2D->GetNumberOfQuadraturePoints();
+
+  this->QuadraturePoints->SetNumberOfComponents(3);
+  this->QuadraturePoints->SetNumberOfTuples(numberOf1DQuadraturePoints * numberOf2DQuadraturePoints);
+  this->QuadratureWeights->SetNumberOfTuples(numberOf1DQuadraturePoints * numberOf2DQuadraturePoints);
+
+  double point[3];
+  double weight;
+  int id;
+  int i, j;
+  for (j=0; j<numberOf1DQuadraturePoints; j++)
+  {
+    for (i=0; i<numberOf2DQuadraturePoints; i++)
+    {
+      id = j * numberOf2DQuadraturePoints + i;
+        
+      point[0] = q2D->GetQuadraturePoint(i)[0];
+      point[1] = q2D->GetQuadraturePoint(i)[1];
+      point[2] = q1D->GetQuadraturePoint(j)[0];
+
+      weight = q2D->GetQuadratureWeight(i) * q1D->GetQuadratureWeight(j);
+      
+      this->QuadraturePoints->SetTuple(id,point);
+      this->QuadratureWeights->SetValue(id,weight);
+    }
+  }
+}
+  
+void vtkvmtkGaussQuadrature::TensorProductTetra(vtkvmtkGaussQuadrature* gauss1D, vtkvmtkGaussQuadrature* jacA1D, vtkvmtkGaussQuadrature* jacB1D)
+{
+  if (gauss1D->GetNumberOfQuadraturePoints() != jacA1D->GetNumberOfQuadraturePoints())
+  {
+    vtkErrorMacro("Error: cannot build tensor product rule if rules have different order.");
   }
 
   if (jacA1D->GetNumberOfQuadraturePoints() != jacB1D->GetNumberOfQuadraturePoints())
   {
-    std::cout << ("Error: cannot build tensor product rule if rules have different order.") << std::endl;
+    vtkErrorMacro("Error: cannot build tensor product rule if rules have different order.");
   }
 
   int numberOf1DQuadraturePoints = gauss1D->GetNumberOfQuadraturePoints();
