@@ -38,34 +38,34 @@ find_package(VTK COMPONENTS
 set (LINK_LIBS ${LINK_LIBS} ${VTK_LIBRARIES})
 
 #=========nl CONFIGURATION==========================
-set (OPENNL_SRCS
-    nl_single_file.c
-    )
+# set (OPENNL_SRCS
+#     nl_single_file.c
+#     )
 
-include_directories(${OPENNL_SOURCE_DIR})
+# include_directories(${OPENNL_SOURCE_DIR})
 
-add_library (nl STATIC ${OPENNL_SRCS})
+# add_library (nl STATIC ${OPENNL_SRCS})
 
-if(NOT WIN32)
-  set_target_properties(nl PROPERTIES COMPILE_FLAGS -fPIC)
-endif()
+# if(NOT WIN32)
+#   set_target_properties(nl PROPERTIES COMPILE_FLAGS -fPIC)
+# endif()
 
-install(TARGETS nl
-  EXPORT VMTK-Targets
-  LIBRARY DESTINATION ${VTK_VMTK_INSTALL_LIB_DIR} COMPONENT RuntimeLibraries
-  ARCHIVE DESTINATION ${VTK_VMTK_INSTALL_LIB_DIR} COMPONENT Development
-  RUNTIME DESTINATION ${VTK_VMTK_INSTALL_BIN_DIR} COMPONENT RuntimeExecutables
-)
+# install(TARGETS nl
+#   EXPORT VMTK-Targets
+#   LIBRARY DESTINATION ${VTK_VMTK_INSTALL_LIB_DIR} COMPONENT RuntimeLibraries
+#   ARCHIVE DESTINATION ${VTK_VMTK_INSTALL_LIB_DIR} COMPONENT Development
+#   RUNTIME DESTINATION ${VTK_VMTK_INSTALL_BIN_DIR} COMPONENT RuntimeExecutables
+# )
 
-install(FILES nl.h
-  DESTINATION ${VTK_VMTK_INSTALL_INCLUDE_DIR}
-  COMPONENT Development)
+# install(FILES nl.h
+#   DESTINATION ${VTK_VMTK_INSTALL_INCLUDE_DIR}
+#   COMPONENT Development)
 
 
 #==========Linking and generation of Executable ===========
 message("we are in the beam")
 message(${HDF5_INCLUDE_DIR})
 
-add_executable(readMesh readMesh.cpp gq.cpp)
+add_executable(readMesh readMesh.cpp)
 
 target_link_libraries (readMesh PRIVATE ${LINK_LIBS})

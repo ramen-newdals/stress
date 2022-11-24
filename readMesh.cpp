@@ -26,8 +26,8 @@ public:
     std::string group_name {"Mesh"};
     std::string verticies_dataset {"coordinates"};
     std::string cells_dataset {"topology"};
-    std::vector<std::tuple<int, int, int, int>> cell_vector;
-    std::vector<std::tuple<double, double, double>> verticie_vector;
+    std::vector<std::vector<int>> cell_vector;
+    std::vector<std::vector<double>> verticie_vector;
     meshReader(){};
     ~meshReader(){};
     //TODO: Change these array dimension names to something more meaningfull
@@ -38,11 +38,24 @@ public:
     void coolSaying()
     {std::cout << "we are in the beam" << std::endl;}
     
-    std::tuple<double, double, double> make_verticie(double x, double y, double z)
-    {return std::make_tuple(x, y, z);}
+    std::vector<double> make_verticie(double x, double y, double z)
+    {
+        std::vector<double> verticie;
+        verticie.push_back(x);
+        verticie.push_back(y);
+        verticie.push_back(z);
+        return verticie;
+    }
 
-    std::tuple<int, int, int, int> make_cell(int v0, int v1, int v2, int v3)
-    {return std::make_tuple(v0, v1, v2, v3);}
+    std::vector<int> make_cell(int v0, int v1, int v2, int v3)
+    {
+        std::vector<int> cell;
+        cell.push_back(v0);
+        cell.push_back(v1);
+        cell.push_back(v2);
+        cell.push_back(v3);
+        return cell;
+    }
 
     int readVerticies()
     {
@@ -66,8 +79,8 @@ public:
         file.close();
 
         // Read in all verticies to verticie_vector
-        for(int i = 0; i<verticies_dim0*verticies_dim1; i+=3)
-        {verticie_vector.push_back(make_verticie(verticies[i-2], verticies[i-1],verticies[i]));}
+        for(int i = 0; i<verticies_dim0; i++)
+        {verticie_vector.push_back(make_verticie(verticies[(i*3)], verticies[(i*3)+1],verticies[(i*3)+2]));}
         return 0;
     }
 
@@ -92,11 +105,11 @@ public:
         dataspace.close();
         file.close();
 
-        std::cout << "Reading cells into vector" << std::endl;
-
         // Read in all cells to the cells_vector
-        for(int i = 0; i<cells_dim0*cells_dim1; i+=4)
-        {cell_vector.push_back(make_cell(cells[i-3], cells[i-2], cells[i-1], cells[i]));}
+        for(int i = 0; i<cells_dim0; i++)
+        {
+            cell_vector.push_back(make_cell(cells[(i*4)], cells[(i*4)+1], cells[(i*4)+2], cells[(i*4)+3]));
+        }
         return 0;
     }
 
@@ -105,9 +118,9 @@ public:
         std::cout << "{ ";
         for (int i = 0; i<verticies_dim0; i++)
         {
-            std::cout << "(" << std::get<0>(verticie_vector[i]) <<
-                        ", " << std::get<1>(verticie_vector[i]) <<
-                        ", " << std::get<2>(verticie_vector[i]) <<
+            std::cout << "(" << verticie_vector[i][0] <<
+                        ", " << verticie_vector[i][1] <<
+                        ", " << verticie_vector[i][2] <<
                         ")"  << std::endl;
         }
         std::cout << "}; \n";
@@ -118,10 +131,10 @@ public:
         std::cout << "{ ";
         for (int i = 0; i<cells_dim0; i++)
         {
-            std::cout << "(" << std::get<0>(cell_vector[i]) <<
-                        ", " << std::get<1>(cell_vector[i]) <<
-                        ", " << std::get<2>(cell_vector[i]) <<
-                        ", " << std::get<3>(cell_vector[i]) <<
+            std::cout << "(" << cell_vector[i][0] <<
+                        ", " << cell_vector[i][1] <<
+                        ", " << cell_vector[i][2] <<
+                        ", " << cell_vector[i][3] <<
                         ")"  << std::endl;
         }
         std::cout << "};" << std::endl;
@@ -137,54 +150,62 @@ public:
         vtkNew<vtkNamedColors> colors;
 
         vtkNew<vtkPoints> points;
+        points->SetNumberOfPoints(verticies_dim0);
 
-        for(int i = 0; i<verticies_dim0; i++)
-        {points->InsertNextPoint(std::get<0>(verticie_vector[i]), std::get<1>(verticie_vector[i]), std::get<2>(verticie_vector[i]));}
+        vtkNew<vtkUnstructuredGrid> unstructuredGrid;
+
+        // Add verticies to unstructured grid
+        double point[3];
+        for(int i = 0; i<verticie_vector.size(); i++)
+        {
+            point[0] = verticie_vector[i][0];
+            point[1] = verticie_vector[i][1];
+            point[2] = verticie_vector[i][2];
+            points->SetPoint(i, point);
+        }
         
-        // Method 1
-        vtkNew<vtkUnstructuredGrid> unstructuredGrid1;
-        unstructuredGrid1->SetPoints(points);
+        unstructuredGrid->SetPoints(points);
 
-        // for(int i =  0; cells_dim0; i++)
-        // {
-        //     vtkIdType ptIds[4];
-        //     ptIds[0] = std::get<0>(cell_vector[i]);
-        //     ptIds[1] = std::get<1>(cell_vector[i]);
-        //     ptIds[2] = std::get<2>(cell_vector[i]);
-        //     ptIds[3] = std::get<3>(cell_vector[i]);
-        //     unstructuredGrid1->InsertNextCell(VTK_TETRA, 4, ptIds);       
-        // }
-        // Create a mapper and actor
+        points->Delete();
 
-        
+        std::cout << "Added verticies" << std::endl;
+        // Add cells to unstructured grid
 
-        vtkIdType ptIds[4];
-        ptIds[0] = 808;
-        ptIds[1] = 110;
-        ptIds[2] = 420;
-        ptIds[3] = 187;
+        vtkNew<vtkCellArray> cells;
+        vtkIdType pointId;
 
-        vtkIdType ptIds2[4];
-        ptIds2[0] = 187;
-        ptIds2[1] = 420;
-        ptIds2[2] = 808;
-        ptIds2[3] = 110;
+        int *outputCellTypes = new int[cells_dim0];
+        int outputCellType = VTK_TETRA;
+        int nodesPerTet = 4;
 
-        vtkIdType numCells = 2;
-        vtkIdType connectivitySize = 8;
+        for(int i =  0; i<cell_vector.size(); i++)
+        {
+            cells->InsertNextCell(nodesPerTet);
+            for(int j = 0; j<nodesPerTet; j++)
+            {
+                pointId = cell_vector[i][j];
+                cells->InsertCellPoint(pointId);
+            }
+            outputCellTypes[i] = outputCellType;
+        }
 
-        unstructuredGrid1->AllocateExact(numCells, connectivitySize);
-        unstructuredGrid1->InsertNextCell(VTK_TETRA, 4, ptIds); 
+        unstructuredGrid->SetCells(outputCellTypes, cells);
 
+        cells->Delete();
 
-        //unstructuredGrid1->InsertNextCell(VTK_TETRA, 4, ptIds2);   
+        std::cout << "Added cells" << std::endl;
+        // Create a mapper and actor  
 
-        vtkNew<vtkDataSetMapper> mapper1;
-        mapper1->SetInputData(unstructuredGrid1);
+        vtkNew<vtkDataSetMapper> mapper;
+        mapper->SetInputData(unstructuredGrid);
 
-        vtkNew<vtkActor> actor1;
-        actor1->SetMapper(mapper1);
-        actor1->GetProperty()->SetColor(colors->GetColor3d("Cyan").GetData());
+        std::cout << "Mapper created" << std::endl;
+
+        vtkNew<vtkActor> actor;
+        actor->SetMapper(mapper);
+        actor->GetProperty()->SetColor(colors->GetColor3d("Cyan").GetData());
+
+        std::cout << "Actor created" << std::endl;
 
         // Create a renderer, render window, and interactor
         vtkNew<vtkRenderer> renderer;
@@ -194,16 +215,22 @@ public:
         vtkNew<vtkRenderWindowInteractor> renderWindowInteractor;
         renderWindowInteractor->SetRenderWindow(renderWindow);
 
+        std::cout << "Render Window Made" << std::endl;
+
         // Add the actor to the scene
-        renderer->AddActor(actor1);
+        renderer->AddActor(actor);
         renderer->SetBackground(colors->GetColor3d("DarkGreen").GetData());
         renderer->ResetCamera();
         renderer->GetActiveCamera()->Azimuth(-10);
         renderer->GetActiveCamera()->Elevation(-20);
 
+        std::cout << "Camera and actor set up" << std::endl;
+
         // Render and interact
         renderWindow->Render();
         renderWindowInteractor->Start();
+
+        std::cout << "Rendered starrted" << std::endl;
 
         return EXIT_SUCCESS;
     }
