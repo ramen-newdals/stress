@@ -61,18 +61,18 @@ int vtkvmtkMeshWallShearRate::RequestData(
     outInfo->Get(vtkDataObject::DATA_OBJECT()));
 
   if (this->VelocityArrayName == NULL)
-    {
+  {
     vtkErrorMacro("VelocityArrayName not specified");
     return 1;
-    }
+  }
 
   vtkDataArray* velocityArray = input->GetPointData()->GetArray(this->VelocityArrayName); 
   
   if (velocityArray == NULL)
-    {
+  {
     vtkErrorMacro("VelocityArray with name specified does not exist");
     return 1;
-    }
+  }
 
   char gradientArrayName[] = "VelocityGradient";
 
@@ -105,13 +105,13 @@ int vtkvmtkMeshWallShearRate::RequestData(
   
   vtkDoubleArray* wallShearRateArray = vtkDoubleArray::New();
   if (this->WallShearRateArrayName)
-    {
+  {
     wallShearRateArray->SetName(this->WallShearRateArrayName);
-    }
+  }
   else
-    {
+  {
     wallShearRateArray->SetName("WallShearRate");
-    }
+  }
   wallShearRateArray->SetNumberOfComponents(3);
   wallShearRateArray->SetNumberOfTuples(numberOfPoints);
 
@@ -122,18 +122,18 @@ int vtkvmtkMeshWallShearRate::RequestData(
   int i, j, k;
 
   if (!this->UseFullStrainRateTensor)
-    {
+  {
     for (i=0; i<numberOfPoints; i++)
-      { 
+    { 
       velocityGradientArray->GetTuple(i,velocityGradient);
       normalsArray->GetTuple(i,normal);
       for (j=0; j<3; j++)
-        {
+      {
         wallShearRate[j] = -normal[0] * velocityGradient[3*j + 0] - normal[1] * velocityGradient[3*j + 1] - normal[2] * velocityGradient[3*j + 2];  
-        }
-      wallShearRateArray->SetTuple(i,wallShearRate);
       }
+      wallShearRateArray->SetTuple(i,wallShearRate);
     }
+  }
   else
   {
 

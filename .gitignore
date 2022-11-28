@@ -1,2 +1,4 @@
 build/*
 mesh.txt
+data/*
+solutionData.h5
