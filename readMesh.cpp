@@ -54,12 +54,18 @@ public:
     vtkNew<vtkDoubleArray> velocityArray;
     vtkNew<vtkDoubleArray> velocityMagnitudeArray;
     vtkNew<vtkCellArray> vtkCells;
+    vtkNew<vtkDoubleArray> velocityGradientArray;
+    vtkNew<vtkDoubleArray> normalsArray;
+    vtkNew<vtkDoubleArray> wallShearRateArray;
+
 
     // Rendering objects
     vtkNew<vtkLookupTable> lut1;
     vtkNew<vtkDataSetMapper> mapper;
     vtkNew<vtkActor> actor;
     vtkNew<vtkRenderer> renderer;
+    vtkNew<vtkRenderWindowInteractor> renderWindowInteractor;
+    vtkNew<vtkRenderWindow> renderWindow;
 
     meshReader()
     {
@@ -75,11 +81,11 @@ public:
 
         // VTK object setup
         points->SetNumberOfPoints(verticies_dim0);
-        velocityArray->SetName("vec");
+        velocityArray->SetName("u");
         velocityArray->SetNumberOfComponents(3);
         velocityArray->SetNumberOfTuples(verticies_dim0);
 
-        velocityMagnitudeArray->SetName("vec_mag");
+        velocityMagnitudeArray->SetName("u_mag");
         velocityMagnitudeArray->SetNumberOfComponents(1);
         velocityMagnitudeArray->SetNumberOfTuples(verticies_dim0);
     };
@@ -88,6 +94,21 @@ public:
         delete velocity;
         delete verticies;
         delete cells;
+        points->Delete();
+        unstructuredGrid->Delete();
+        velocityArray->Delete();
+        velocityMagnitudeArray->Delete();
+        vtkCells->Delete();
+        velocityGradientArray->Delete();
+        normalsArray->Delete();
+        wallShearRateArray->Delete();
+
+        lut1->Delete();
+        mapper->Delete();
+        actor->Delete();
+        renderer->Delete();
+        renderWindowInteractor->Delete();
+        renderWindow->Delete();
     };
 
 
@@ -266,7 +287,7 @@ public:
         renderer->AddActor(actor);
         renderer->SetBackground(0.187, 0.808, 0.420);
 
-        vtkNew<vtkRenderWindow> renderWindow;
+        
         renderWindow->AddRenderer(renderer);
         renderWindow->SetSize(350, 500);
         renderWindow->SetWindowName("eins_oct_siben_gang");
@@ -279,7 +300,7 @@ public:
         camera->OrthogonalizeViewUp();
         camera->Azimuth(135.0);
 
-        vtkNew<vtkRenderWindowInteractor> renderWindowInteractor;
+        
         renderWindowInteractor->SetRenderWindow(renderWindow);
         renderWindow->Render();
         renderWindowInteractor->Initialize();
@@ -290,14 +311,18 @@ public:
 
     int calculateGradiant()
     {
+        vtkIndent indent;
         vtkNew<vtkGradientFilter> gradient;
-        gradient->Print(std::cout);
+        //gradient->SetInputConnection(unstructuredGrid->GetPointData());
+        gradient->AddInputData(unstructuredGrid);
         gradient->SetInputScalars(3, "u");
-        gradient->GetFasterApproximation();
-        //vtkDataArray *Array, int fieldAssociation, vtkDataSet *input, bool computeVorticity, bool computeQCriterion, bool computeDivergence, vtkDataSet *output
-        //int result;
-        //gradient->ComputeUnstructuredGridGradient(velocityArray, 1, unstructuredGrid, false, false, false, unstructuredGrid);
-        gradient->Print(std::cout);
+        gradient->SetResultArrayName("u_grad");
+        //gradient->Print(std::cout);
+        gradient->Update();
+        std::cout << "Gradiaent Computed" << std::endl;
+        gradient->GetUnstructuredGridOutput()->GetPointData()->PrintSelf(std::cout, indent);
+        //gradient->Print(std::cout);
+        gradient->Delete();
         return 0;
     }
 
@@ -308,40 +333,45 @@ public:
         Calculate wall shear rate vector: tau = -2 * E*n * (1-n^T*n)
         Reference: Matyka et al., http://dx.doi.org/10.1016/j.compfluid.2012.12.018
         **********************************************************************/
+        double velocityGradient[9];
+        double normal[3];
+        double wallShearRate[3];
+        
         double normalShear, shearVector[3], strainRateTensor[9];
-        for (i=0; i<numberOfPoints; i++)
+        for (int i=0; i<verticies_dim0; i++)
         {
-        // compute strain rate tensor
-        velocityGradientArray->GetTuple(i,velocityGradient);
-        for (j=0; j<3; j++)
-        {
-          for (k=0; k<3; k++)
-          {
-            strainRateTensor[3*j + k] = 0.5 * (velocityGradient[3*j + k] + velocityGradient[3*k + j]);
-          }
-        }
+            // compute strain rate tensor
+            velocityGradientArray->GetTuple(i,velocityGradient);
+            for (int j=0; j<3; j++)
+            {
+                for (int k=0; k<3; k++)
+                {
+                strainRateTensor[3*j + k] = 0.5 * (velocityGradient[3*j + k] + velocityGradient[3*k + j]);
+                }
+            }
 
-        // compute shear rate vector and normal projection
-        normalsArray->GetTuple(i,normal);
-        normalShear = 0.0;
-        for (j=0; j<3; j++)
-        {
-          shearVector[j] = 0.0;
-          for (k=0; k<3; k++)
-          {
-            shearVector[j] += strainRateTensor[3*j + k] * normal[k];
-          }
-          normalShear += shearVector[j] * normal[j];
-        }
+            // compute shear rate vector and normal projection
+            normalsArray->GetTuple(i,normal);
+            normalShear = 0.0;
+            for (int j=0; j<3; j++)
+            {
+                shearVector[j] = 0.0;
+                for (int k=0; k<3; k++)
+                {
+                shearVector[j] += strainRateTensor[3*j + k] * normal[k];
+                }
+                normalShear += shearVector[j] * normal[j];
+            }
 
-        // compute wall shear rate
-        for (j=0; j<3; j++)
-        {
-          // sign due to normals pointing outwards
-          wallShearRate[j] = -2.0 * (shearVector[j] - normalShear*normal[j]);
+            // compute wall shear rate
+            for (int j=0; j<3; j++)
+            {
+                // sign due to normals pointing outwards
+                wallShearRate[j] = -2.0 * (shearVector[j] - normalShear*normal[j]);
+            }
+            wallShearRateArray->SetTuple(i,wallShearRate);
         }
-        wallShearRateArray->SetTuple(i,wallShearRate);
-        }
+        return 0;
     }
 };
 
@@ -354,7 +384,7 @@ int main(void){
     mesh1.coolSaying();
     std::cout << "HDF5 Api is hell to use" << std::endl;
     mesh1.deffineMesh();
-    //mesh1.calculateGradiant();
+    mesh1.calculateGradiant();
     
     return 0; // successfully terminated
 }
