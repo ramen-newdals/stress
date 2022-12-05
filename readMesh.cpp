@@ -41,6 +41,7 @@ public:
     std::vector<std::vector<int>> cell_vector;
     std::vector<std::vector<double>> verticie_vector;
     std::vector<std::vector<double>> velocity_vector;
+    std::vector<std::vector<double>> grad_velocity;
 
     int RANK, verticies_dim0, verticies_dim1, cells_dim0, cells_dim1;
     double *verticies;
@@ -88,6 +89,10 @@ public:
         velocityMagnitudeArray->SetName("u_mag");
         velocityMagnitudeArray->SetNumberOfComponents(1);
         velocityMagnitudeArray->SetNumberOfTuples(verticies_dim0);
+
+        velocityGradientArray->SetName("grad_u");
+        velocityGradientArray->SetNumberOfComponents(verticies_dim0);
+        velocityGradientArray->SetNumberOfTuples(3*3);
     };
     ~meshReader()
     {
@@ -264,7 +269,7 @@ public:
         vtkCells->Delete();
         delete outputCellTypes;
         
-        unstructuredGrid->Print(std::cout);
+        //unstructuredGrid->Print(std::cout);
         return 0;
     }
 
@@ -311,17 +316,32 @@ public:
 
     int calculateGradiant()
     {
+        std::cout << "=============================" << std::endl;
+        vtkIdType pointNum;
+        double value;
+        for(int i = 0; i < 1000; i++)
+        {
+            pointNum = i;
+            value = velocityGradientArray->GetComponent(pointNum, 0);
+            std::cout << value << std::endl;    
+        }
         vtkIndent indent;
         vtkNew<vtkGradientFilter> gradient;
-        //gradient->SetInputConnection(unstructuredGrid->GetPointData());
         gradient->AddInputData(unstructuredGrid);
         gradient->SetInputScalars(3, "u");
         gradient->SetResultArrayName("u_grad");
-        //gradient->Print(std::cout);
         gradient->Update();
         std::cout << "Gradiaent Computed" << std::endl;
-        gradient->GetUnstructuredGridOutput()->GetPointData()->PrintSelf(std::cout, indent);
-        //gradient->Print(std::cout);
+        vtkIdType pointId;
+        pointId = 10;
+        float val;
+        /*vtkAbstractArray *memes = */gradient->GetUnstructuredGridOutput()->GetPointData()->GetAbstractArray("u_grad")->DeepCopy(velocityGradientArray);
+        for(int i = 0; i < 1000; i++)
+        {
+            pointNum = i;
+            value = velocityGradientArray->GetComponent(pointNum, 0);
+            std::cout << value << std::endl;    
+        }
         gradient->Delete();
         return 0;
     }
@@ -373,6 +393,7 @@ public:
         }
         return 0;
     }
+
 };
 
 int main(void){
@@ -382,7 +403,6 @@ int main(void){
     mesh1.readCells();
     mesh1.readVelocity();
     mesh1.coolSaying();
-    std::cout << "HDF5 Api is hell to use" << std::endl;
     mesh1.deffineMesh();
     mesh1.calculateGradiant();
     
