@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <algorithm>
 #include <numbers>
-// Eigen headder
+// Eigen headders
 #include <Eigen/Dense>
 // HDF5 Headders
 #include "H5Cpp.h"
@@ -245,8 +245,12 @@ public:
         std::vector<int> vertexConnectivity = getVetexConnectivity(vertexNum);
         Eigen::MatrixXd A(vertexConnectivity.size(), 10);
         Eigen::MatrixXd A_T(10, vertexConnectivity.size());
+        Eigen::MatrixXd A_F(10, 10);
         Eigen::MatrixXd W(vertexConnectivity.size(), vertexConnectivity.size());
-        Eigen::VectorXd F(10);
+        Eigen::VectorXd F(vertexConnectivity.size());
+        Eigen::VectorXd b(10);
+        // Eigen::ColPivHouseholderQR<MatrixXd> dec(A_F);
+        Eigen::VectorXd x(10);
         double avg_length=0;
         int i, j;
         // Calculate the average length between all verticies
@@ -262,6 +266,7 @@ public:
         double const_1 = 0.398942280401432677, d;
         for(i = 0; i<vertexConnectivity.size(); i++)
         {
+            F(i) = velocity_vector[vertexConnectivity[i]][0];
             A(i, 0) = std::pow(verticie_vector[vertexConnectivity[i]][0], 2);
             A(i, 1) = std::pow(verticie_vector[vertexConnectivity[i]][1], 2);
             A(i, 2) = std::pow(verticie_vector[vertexConnectivity[i]][2], 2);
@@ -281,23 +286,13 @@ public:
             }
         }
         A_T = A.transpose();
-        std::cout << "A^T = : " << A_T << std::endl;
-        std::cout << "W = " << W << std::endl;
-        std::cout << "Here is the matrix A^T*W*A:\n" << A_T*W*A << std::endl;
-        //Eigen::Matrix2f x = A.ldlt().solve(b);
-        //std::cout << "The solution is:\n" << x << std::endl;
-
-        // for(int i = 0; i<vertexConnectivity.size(); i++)
-        // {
-        //     for(int j = 0; j<vertexConnectivity[0].size(); j++)
-        //     {
-        //         W[i][j] = std::exp(std::pow(d[i][j], 2)*-0.5)*(1/L)*(1/std::sqrt(2*std::pi));
-        //     }
-        //     F_0[i] = velocity_vector[i][0];
-        //     F_1[i] = velocity_vector[i][1];
-        //     F_2[i] = velocity_vector[i][2];
-        // }
-       return 0;
+        A_F = A_T*W*A;
+        b = A_T*W*F;
+        x = A_F.colPivHouseholderQr().solve(b);
+        std::cout << "A is:" << std::endl << A_F << std::endl;
+        std::cout << "b is:" << std::endl << b << std::endl;
+        std::cout << "The solution is:" << std::endl << x << endl;
+        return 0;
     }
 
     int solveLSMatricies()
@@ -501,8 +496,8 @@ int main(void){
     mesh1.readCells();
     mesh1.readVelocity();
     mesh1.coolSaying();
-    mesh1.constructLSMatricies(136384);
+    mesh1.constructLSMatricies(187);
     //mesh1.checkConnectivity();
-    mesh1.getVetexConnectivity(136384);
+    //mesh1.getVetexConnectivity(136384);
     return 0; // successfully terminated
 }
