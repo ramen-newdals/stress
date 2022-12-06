@@ -37,17 +37,21 @@ find_package(VTK COMPONENTS
 
 set (LINK_LIBS ${LINK_LIBS} ${VTK_LIBRARIES})
 
-#========VMTK CONFIGURATION========================
-set(VMTK_DIR "/home/ramen_newdals/graphics/vmtk_build/VMTK-Build")
-find_package(VMTK)
+#========OpenMP CONFIGURATION======================
+include(FindOpenMP)
 
+if (OpenMP_CXX_FOUND)
+  message("FOUND OPENMP!")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+else ()
+  message("DID NOT FIND OPENMP :(")
+endif ()
 
 #========EIGEN CONFIGURATION=======================
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 
 #========Compiling Executable======================
 message("we are in the beam")
-message(${HDF5_INCLUDE_DIR})
 
 add_executable(readMesh readMesh.cpp)
 add_compile_options(-02)

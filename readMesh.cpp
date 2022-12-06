@@ -5,34 +5,13 @@
 #include <stdlib.h>
 #include <algorithm>
 #include <numbers>
+#include <omp.h>
 // Timming header
 #include "hrtime.h"
-#include <omp.h>
 // Eigen headders
 #include <Eigen/Dense>
 // HDF5 Headders
 #include "H5Cpp.h"
-// VTK headders
-#include <vtkActor.h>
-#include <vtkCamera.h>
-#include <vtkCellType.h>
-#include <vtkDataSetMapper.h>
-#include <vtkNamedColors.h>
-#include <vtkNew.h>
-#include <vtkPoints.h>
-#include <vtkPointData.h>
-#include <vtkProperty.h>
-#include <vtkLookupTable.h>
-#include <vtkNamedColors.h>
-#include <vtkRenderWindow.h>
-#include <vtkRenderWindowInteractor.h>
-#include <vtkRenderer.h>
-#include <vtkTetra.h>
-#include <vtkUnstructuredGrid.h>
-#include <vtkDoubleArray.h>
-#include <vtkColor.h>
-#include <vtkNamedColors.h>
-#include <vtkGradientFilter.h>
 
 class meshReader
 {
