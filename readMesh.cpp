@@ -3,6 +3,10 @@
 #include <tuple>
 #include <string>
 #include <stdlib.h>
+#include <algorithm>
+// Eigen headder
+#include <Eigen/Dense>
+// HDF5 Headders
 #include "H5Cpp.h"
 // VTK headders
 #include <vtkActor.h>
@@ -89,10 +93,6 @@ public:
         velocityMagnitudeArray->SetName("u_mag");
         velocityMagnitudeArray->SetNumberOfComponents(1);
         velocityMagnitudeArray->SetNumberOfTuples(verticies_dim0);
-
-        velocityGradientArray->SetName("grad_u");
-        velocityGradientArray->SetNumberOfComponents(verticies_dim0);
-        velocityGradientArray->SetNumberOfTuples(3*3);
     };
     ~meshReader()
     {
@@ -192,6 +192,178 @@ public:
         // Read in all cells to the cells_vector
         for(int i = 0; i<cells_dim0; i++)
         {cell_vector.push_back(make_cell(cells[(i*4)], cells[(i*4)+1], cells[(i*4)+2], cells[(i*4)+3]));}
+        return 0;
+    }
+
+    std::vector<int> getVetexConnectivity(int vertexNum)
+    {
+        /* 
+        For each vertex go throuhg every cell and find what cells contain this vertex
+        if the cell has the vertex it is one of its neightboors, add all of the verticies to
+        the vertex connectivity vector such that there are not duplicates
+        */
+        std::vector<std::vector<int>> vertexConnectivity;
+        std::vector<int> connectivityVerticies;
+        std::vector<int> connectivityCells;
+        connectivityVerticies.push_back(vertexNum);
+        // Find all cells that contain a common vertex
+        int i, j;
+        for(i = 0; i<cells_dim0; i++)
+        {
+            for(j = 0; j<4; j++)
+            {
+                if(cell_vector[i][j] == vertexNum)
+                {
+                    connectivityCells.push_back(i);
+                }
+            }
+        }
+        // Using the cells that have a common vertex add all nodes of these cells
+        // to the vertex connectivity map
+        for(i = 0; i<connectivityCells.size(); i++)
+        {
+            for(j = 0; j<4; j++)
+            {
+                if(cell_vector[connectivityCells[i]][j] != vertexNum)
+                {
+                    connectivityVerticies.push_back(cell_vector[connectivityCells[i]][j]);
+                }
+            }
+        }
+        // Remove duplicate verticies from the connectivity list
+        std::sort(connectivityVerticies.begin(), connectivityVerticies.end()); 
+        auto last = std::unique(connectivityVerticies.begin(), connectivityVerticies.end());
+        connectivityVerticies.erase(last, connectivityVerticies.end());
+        for (const auto& i : connectivityVerticies) std::cout << i << " ";
+        std::cout << std::endl;
+        return connectivityVerticies;
+    }
+
+    int constructLSMatricies(int vertexNum)
+    {
+        std::vector<int> vertexConnectivity = getVetexConnectivity(vertexNum);
+        Eigen::MatrixXd A(vertexConnectivity.size(), 10);
+        Eigen::MatrixXd A_T(10, vertexConnectivity.size());
+        Eigen::MatrixXd W(vertexConnectivity.size(), vertexConnectivity.size());
+        Eigen::VectorXd F(10);
+
+        for(int i = 0; i<vertexConnectivity.size(); i++)
+        {
+            A(i, 0) = std::pow(verticie_vector[vertexConnectivity[i]][0], 2);
+            A(i, 1) = std::pow(verticie_vector[vertexConnectivity[i]][1], 2);
+            A(i, 2) = std::pow(verticie_vector[vertexConnectivity[i]][2], 2);
+            A(i, 3) = verticie_vector[vertexConnectivity[i]][0]*verticie_vector[vertexConnectivity[i]][1]*verticie_vector[vertexConnectivity[i]][2];
+            A(i, 4) = verticie_vector[vertexConnectivity[i]][0]*verticie_vector[vertexConnectivity[i]][1];
+            A(i, 5) = verticie_vector[vertexConnectivity[i]][0]*verticie_vector[vertexConnectivity[i]][2];
+            A(i, 6) = verticie_vector[vertexConnectivity[i]][1]*verticie_vector[vertexConnectivity[i]][2];
+            A(i, 7) = verticie_vector[vertexConnectivity[i]][0];
+            A(i, 8) = verticie_vector[vertexConnectivity[i]][1];
+            A(i, 9) = verticie_vector[vertexConnectivity[i]][2];
+            for(int j = 0; j<vertexConnectivity.size(); j++)
+            {
+                W(i, j) = (std::exp())
+            }
+        }
+        A_T = A.transpose();
+        std::cout << "Here is the matrix A^T*A:\n" << A_T*A << std::endl;
+        //Eigen::Matrix2f x = A.ldlt().solve(b);
+        //std::cout << "The solution is:\n" << x << std::endl;
+
+        // for(int i = 0; i<vertexConnectivity.size(); i++)
+        // {
+
+        //     A_T[0][i]
+        //     A_T[1][i]
+        //     A_T[2][i]
+        //     A_T[3][i]
+        //     A_T[4][i]
+        //     A_T[5][i]
+        //     A_T[6][i]
+        //     A_T[7][i]
+        //     A_T[8][i]
+        //     A_T[9][i]
+
+        //     for(int j = 0; j<vertexConnectivity[0].size(); j++)
+        //     {
+        //         W[i][j] = std::exp(std::pow(d[i][j], 2)*-0.5)*(1/L)*(1/std::sqrt(2*std::pi));
+        //     }
+        //     F_0[i] = velocity_vector[i][0];
+        //     F_1[i] = velocity_vector[i][1];
+        //     F_2[i] = velocity_vector[i][2];
+        // }
+       return 0;
+    }
+
+    int solveLSMatricies()
+    {
+        return 0;
+    }
+
+    int estimateGradient()
+    {
+        return 0;
+    }
+
+    int calculateNormal()
+    {
+        return 0;
+    }
+
+    int calculateStrainRateTensor()
+    {
+        /**********************************************************************
+        Calculate strain rate tensor: E = 0.5 * (\nabla u + (\nabla u)^T)
+        Calculate wall shear rate vector: tau = -2 * E*n * (1-n^T*n)
+        Reference: Matyka et al., http://dx.doi.org/10.1016/j.compfluid.2012.12.018
+        **********************************************************************/
+        double velocityGradient[9];
+        double normal[3];
+        double wallShearRate[3];
+        
+        double normalShear, shearVector[3], strainRateTensor[9];
+        for (int i=0; i<verticies_dim0; i++)
+        {
+            // compute strain rate tensor
+            velocityGradientArray->GetTuple(i,velocityGradient);
+            for (int j=0; j<3; j++)
+            {
+                for (int k=0; k<3; k++)
+                {
+                strainRateTensor[3*j + k] = 0.5 * (velocityGradient[3*j + k] + velocityGradient[3*k + j]);
+                }
+            }
+
+            // compute shear rate vector and normal projection
+            normalsArray->GetTuple(i,normal);
+            normalShear = 0.0;
+            for (int j=0; j<3; j++)
+            {
+                shearVector[j] = 0.0;
+                for (int k=0; k<3; k++)
+                {
+                shearVector[j] += strainRateTensor[3*j + k] * normal[k];
+                }
+                normalShear += shearVector[j] * normal[j];
+            }
+
+            // compute wall shear rate
+            for (int j=0; j<3; j++)
+            {
+                // sign due to normals pointing outwards
+                wallShearRate[j] = -2.0 * (shearVector[j] - normalShear*normal[j]);
+            }
+            wallShearRateArray->SetTuple(i,wallShearRate);
+        }
+        return 0;
+    }
+
+    int checkConnectivity()
+    {
+        for(int i = 0; i<verticies_dim0; i++)
+        {
+            getVetexConnectivity(i);
+        }
+        std::cout << "Checked connectivity done." << std::endl;
         return 0;
     }
 
@@ -314,86 +486,6 @@ public:
         return EXIT_SUCCESS;
     }
 
-    int calculateGradiant()
-    {
-        std::cout << "=============================" << std::endl;
-        vtkIdType pointNum;
-        double value;
-        for(int i = 0; i < 1000; i++)
-        {
-            pointNum = i;
-            value = velocityGradientArray->GetComponent(pointNum, 0);
-            std::cout << value << std::endl;    
-        }
-        vtkIndent indent;
-        vtkNew<vtkGradientFilter> gradient;
-        gradient->AddInputData(unstructuredGrid);
-        gradient->SetInputScalars(3, "u");
-        gradient->SetResultArrayName("u_grad");
-        gradient->Update();
-        std::cout << "Gradiaent Computed" << std::endl;
-        vtkIdType pointId;
-        pointId = 10;
-        float val;
-        /*vtkAbstractArray *memes = */gradient->GetUnstructuredGridOutput()->GetPointData()->GetAbstractArray("u_grad")->DeepCopy(velocityGradientArray);
-        for(int i = 0; i < 1000; i++)
-        {
-            pointNum = i;
-            value = velocityGradientArray->GetComponent(pointNum, 0);
-            std::cout << value << std::endl;    
-        }
-        gradient->Delete();
-        return 0;
-    }
-
-    int calculateStrainRateTensor()
-    {
-        /**********************************************************************
-        Calculate strain rate tensor: E = 0.5 * (\nabla u + (\nabla u)^T)
-        Calculate wall shear rate vector: tau = -2 * E*n * (1-n^T*n)
-        Reference: Matyka et al., http://dx.doi.org/10.1016/j.compfluid.2012.12.018
-        **********************************************************************/
-        double velocityGradient[9];
-        double normal[3];
-        double wallShearRate[3];
-        
-        double normalShear, shearVector[3], strainRateTensor[9];
-        for (int i=0; i<verticies_dim0; i++)
-        {
-            // compute strain rate tensor
-            velocityGradientArray->GetTuple(i,velocityGradient);
-            for (int j=0; j<3; j++)
-            {
-                for (int k=0; k<3; k++)
-                {
-                strainRateTensor[3*j + k] = 0.5 * (velocityGradient[3*j + k] + velocityGradient[3*k + j]);
-                }
-            }
-
-            // compute shear rate vector and normal projection
-            normalsArray->GetTuple(i,normal);
-            normalShear = 0.0;
-            for (int j=0; j<3; j++)
-            {
-                shearVector[j] = 0.0;
-                for (int k=0; k<3; k++)
-                {
-                shearVector[j] += strainRateTensor[3*j + k] * normal[k];
-                }
-                normalShear += shearVector[j] * normal[j];
-            }
-
-            // compute wall shear rate
-            for (int j=0; j<3; j++)
-            {
-                // sign due to normals pointing outwards
-                wallShearRate[j] = -2.0 * (shearVector[j] - normalShear*normal[j]);
-            }
-            wallShearRateArray->SetTuple(i,wallShearRate);
-        }
-        return 0;
-    }
-
 };
 
 int main(void){
@@ -403,8 +495,8 @@ int main(void){
     mesh1.readCells();
     mesh1.readVelocity();
     mesh1.coolSaying();
-    mesh1.deffineMesh();
-    mesh1.calculateGradiant();
-    
+    //mesh1.checkConnectivity();
+    mesh1.getVetexConnectivity(136384);
+    mesh1.constructLSMatricies(136384);
     return 0; // successfully terminated
 }
