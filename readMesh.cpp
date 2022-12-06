@@ -4,6 +4,7 @@
 #include <string>
 #include <stdlib.h>
 #include <algorithm>
+#include <numbers>
 // Eigen headder
 #include <Eigen/Dense>
 // HDF5 Headders
@@ -246,8 +247,20 @@ public:
         Eigen::MatrixXd A_T(10, vertexConnectivity.size());
         Eigen::MatrixXd W(vertexConnectivity.size(), vertexConnectivity.size());
         Eigen::VectorXd F(10);
+        double avg_length=0;
+        int i, j;
+        // Calculate the average length between all verticies
+        for(i=0;i<vertexConnectivity.size(); i++)
+        {
+            avg_length += std::sqrt(std::pow(verticie_vector[vertexNum][0]-verticie_vector[vertexConnectivity[i]][0], 2) + 
+                                    std::pow(verticie_vector[vertexNum][1]-verticie_vector[vertexConnectivity[i]][1], 2) + 
+                                    std::pow(verticie_vector[vertexNum][2]-verticie_vector[vertexConnectivity[i]][2], 2));
+        }
+        avg_length = avg_length/vertexConnectivity.size();
+        std::cout<<avg_length<<std::endl;
 
-        for(int i = 0; i<vertexConnectivity.size(); i++)
+        double const_1 = 0.398942280401432677, d;
+        for(i = 0; i<vertexConnectivity.size(); i++)
         {
             A(i, 0) = std::pow(verticie_vector[vertexConnectivity[i]][0], 2);
             A(i, 1) = std::pow(verticie_vector[vertexConnectivity[i]][1], 2);
@@ -259,30 +272,23 @@ public:
             A(i, 7) = verticie_vector[vertexConnectivity[i]][0];
             A(i, 8) = verticie_vector[vertexConnectivity[i]][1];
             A(i, 9) = verticie_vector[vertexConnectivity[i]][2];
-            for(int j = 0; j<vertexConnectivity.size(); j++)
+            for(j = 0; j<vertexConnectivity.size(); j++)
             {
-                W(i, j) = (std::exp())
+                d = std::sqrt(std::pow(verticie_vector[vertexConnectivity[j]][0]-verticie_vector[vertexConnectivity[i]][0], 2) + 
+                              std::pow(verticie_vector[vertexConnectivity[j]][1]-verticie_vector[vertexConnectivity[i]][1], 2) + 
+                              std::pow(verticie_vector[vertexConnectivity[j]][2]-verticie_vector[vertexConnectivity[i]][2], 2));
+                W(i, j) = (1/avg_length)*const_1*std::exp((std::pow(d, 2)/std::pow(avg_length, 2))*-1);
             }
         }
         A_T = A.transpose();
-        std::cout << "Here is the matrix A^T*A:\n" << A_T*A << std::endl;
+        std::cout << "A^T = : " << A_T << std::endl;
+        std::cout << "W = " << W << std::endl;
+        std::cout << "Here is the matrix A^T*W*A:\n" << A_T*W*A << std::endl;
         //Eigen::Matrix2f x = A.ldlt().solve(b);
         //std::cout << "The solution is:\n" << x << std::endl;
 
         // for(int i = 0; i<vertexConnectivity.size(); i++)
         // {
-
-        //     A_T[0][i]
-        //     A_T[1][i]
-        //     A_T[2][i]
-        //     A_T[3][i]
-        //     A_T[4][i]
-        //     A_T[5][i]
-        //     A_T[6][i]
-        //     A_T[7][i]
-        //     A_T[8][i]
-        //     A_T[9][i]
-
         //     for(int j = 0; j<vertexConnectivity[0].size(); j++)
         //     {
         //         W[i][j] = std::exp(std::pow(d[i][j], 2)*-0.5)*(1/L)*(1/std::sqrt(2*std::pi));
@@ -495,8 +501,8 @@ int main(void){
     mesh1.readCells();
     mesh1.readVelocity();
     mesh1.coolSaying();
+    mesh1.constructLSMatricies(136384);
     //mesh1.checkConnectivity();
     mesh1.getVetexConnectivity(136384);
-    mesh1.constructLSMatricies(136384);
     return 0; // successfully terminated
 }
