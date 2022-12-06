@@ -5,6 +5,9 @@
 #include <stdlib.h>
 #include <algorithm>
 #include <numbers>
+// Timming header
+#include "hrtime.h"
+#include <omp.h>
 // Eigen headders
 #include <Eigen/Dense>
 // HDF5 Headders
@@ -53,26 +56,6 @@ public:
     double *velocity;
     int *cells;
 
-    // vtk objects
-    // Data primative objects
-    vtkNew<vtkPoints> points;
-    vtkNew<vtkUnstructuredGrid> unstructuredGrid;
-    vtkNew<vtkDoubleArray> velocityArray;
-    vtkNew<vtkDoubleArray> velocityMagnitudeArray;
-    vtkNew<vtkCellArray> vtkCells;
-    vtkNew<vtkDoubleArray> velocityGradientArray;
-    vtkNew<vtkDoubleArray> normalsArray;
-    vtkNew<vtkDoubleArray> wallShearRateArray;
-
-
-    // Rendering objects
-    vtkNew<vtkLookupTable> lut1;
-    vtkNew<vtkDataSetMapper> mapper;
-    vtkNew<vtkActor> actor;
-    vtkNew<vtkRenderer> renderer;
-    vtkNew<vtkRenderWindowInteractor> renderWindowInteractor;
-    vtkNew<vtkRenderWindow> renderWindow;
-
     meshReader()
     {
         //TODO: Change these array dimension names to something more meaningfull
@@ -85,36 +68,12 @@ public:
         velocity = new double[verticies_dim0*verticies_dim1];
         cells = new int[cells_dim0*cells_dim1];
 
-        // VTK object setup
-        points->SetNumberOfPoints(verticies_dim0);
-        velocityArray->SetName("u");
-        velocityArray->SetNumberOfComponents(3);
-        velocityArray->SetNumberOfTuples(verticies_dim0);
-
-        velocityMagnitudeArray->SetName("u_mag");
-        velocityMagnitudeArray->SetNumberOfComponents(1);
-        velocityMagnitudeArray->SetNumberOfTuples(verticies_dim0);
     };
     ~meshReader()
     {
         delete velocity;
         delete verticies;
         delete cells;
-        points->Delete();
-        unstructuredGrid->Delete();
-        velocityArray->Delete();
-        velocityMagnitudeArray->Delete();
-        vtkCells->Delete();
-        velocityGradientArray->Delete();
-        normalsArray->Delete();
-        wallShearRateArray->Delete();
-
-        lut1->Delete();
-        mapper->Delete();
-        actor->Delete();
-        renderer->Delete();
-        renderWindowInteractor->Delete();
-        renderWindow->Delete();
     };
 
 
@@ -196,6 +155,33 @@ public:
         return 0;
     }
 
+    int readVelocity()
+    {   
+        H5::H5File file(file_name_velocity, H5F_ACC_RDONLY);
+        hsize_t dims[2];
+        dims[0] = verticies_dim0;
+        dims[1] = verticies_dim1;
+
+        H5::DataSpace dataspace = H5::DataSpace(RANK, dims);
+        H5::Group solution;
+        H5::DataSet dataset;
+
+        file.openFile(file_name_velocity, H5F_ACC_RDONLY);
+        solution = file.openGroup(group_name_velocity);
+        dataset = solution.openDataSet(velocity_dataset);
+        dataset.read(velocity, H5T_NATIVE_DOUBLE);
+        
+        dataset.close();
+        solution.close();
+        dataspace.close();
+        file.close();
+
+        // Read in all nodal velocities to velocity_vector
+        for(int i = 0; i<verticies_dim0; i++)
+        {velocity_vector.push_back(make_verticie(velocity[(i*3)], velocity[(i*3)+1],velocity[(i*3)+2]));}
+        return 0;
+    }
+
     std::vector<int> getVetexConnectivity(int vertexNum)
     {
         /* 
@@ -235,8 +221,8 @@ public:
         std::sort(connectivityVerticies.begin(), connectivityVerticies.end()); 
         auto last = std::unique(connectivityVerticies.begin(), connectivityVerticies.end());
         connectivityVerticies.erase(last, connectivityVerticies.end());
-        for (const auto& i : connectivityVerticies) std::cout << i << " ";
-        std::cout << std::endl;
+        // for (const auto& i : connectivityVerticies) std::cout << i << " ";
+        // std::cout << std::endl;
         return connectivityVerticies;
     }
 
@@ -261,7 +247,7 @@ public:
                                     std::pow(verticie_vector[vertexNum][2]-verticie_vector[vertexConnectivity[i]][2], 2));
         }
         avg_length = avg_length/vertexConnectivity.size();
-        std::cout<<avg_length<<std::endl;
+        // std::cout<<avg_length<<std::endl;
 
         double const_1 = 0.398942280401432677, d;
         for(i = 0; i<vertexConnectivity.size(); i++)
@@ -289,9 +275,11 @@ public:
         A_F = A_T*W*A;
         b = A_T*W*F;
         x = A_F.colPivHouseholderQr().solve(b);
-        std::cout << "A is:" << std::endl << A_F << std::endl;
-        std::cout << "b is:" << std::endl << b << std::endl;
-        std::cout << "The solution is:" << std::endl << x << endl;
+        // std::cout << "A is:" << std::endl << A_F << std::endl;
+        // std::cout << "b is:" << std::endl << b << std::endl;
+        // std::cout << "The solution is:" << std::endl << x << endl;
+
+        // std::cout << "grad_u[0] ~= " << (2*verticie_vector[vertexNum][0]*x[0]) + (x[3]*verticie_vector[vertexNum][1]*verticie_vector[vertexNum][2]) + (x[4]*verticie_vector[vertexNum][1]) + (x[5]*verticie_vector[vertexNum][2]) + (x[7]) << std::endl;
         return 0;
     }
 
@@ -310,54 +298,6 @@ public:
         return 0;
     }
 
-    int calculateStrainRateTensor()
-    {
-        /**********************************************************************
-        Calculate strain rate tensor: E = 0.5 * (\nabla u + (\nabla u)^T)
-        Calculate wall shear rate vector: tau = -2 * E*n * (1-n^T*n)
-        Reference: Matyka et al., http://dx.doi.org/10.1016/j.compfluid.2012.12.018
-        **********************************************************************/
-        double velocityGradient[9];
-        double normal[3];
-        double wallShearRate[3];
-        
-        double normalShear, shearVector[3], strainRateTensor[9];
-        for (int i=0; i<verticies_dim0; i++)
-        {
-            // compute strain rate tensor
-            velocityGradientArray->GetTuple(i,velocityGradient);
-            for (int j=0; j<3; j++)
-            {
-                for (int k=0; k<3; k++)
-                {
-                strainRateTensor[3*j + k] = 0.5 * (velocityGradient[3*j + k] + velocityGradient[3*k + j]);
-                }
-            }
-
-            // compute shear rate vector and normal projection
-            normalsArray->GetTuple(i,normal);
-            normalShear = 0.0;
-            for (int j=0; j<3; j++)
-            {
-                shearVector[j] = 0.0;
-                for (int k=0; k<3; k++)
-                {
-                shearVector[j] += strainRateTensor[3*j + k] * normal[k];
-                }
-                normalShear += shearVector[j] * normal[j];
-            }
-
-            // compute wall shear rate
-            for (int j=0; j<3; j++)
-            {
-                // sign due to normals pointing outwards
-                wallShearRate[j] = -2.0 * (shearVector[j] - normalShear*normal[j]);
-            }
-            wallShearRateArray->SetTuple(i,wallShearRate);
-        }
-        return 0;
-    }
-
     int checkConnectivity()
     {
         for(int i = 0; i<verticies_dim0; i++)
@@ -368,136 +308,34 @@ public:
         return 0;
     }
 
-    int readVelocity()
-    {   
-        H5::H5File file(file_name_velocity, H5F_ACC_RDONLY);
-        hsize_t dims[2];
-        dims[0] = verticies_dim0;
-        dims[1] = verticies_dim1;
-
-        H5::DataSpace dataspace = H5::DataSpace(RANK, dims);
-        H5::Group solution;
-        H5::DataSet dataset;
-
-        file.openFile(file_name_velocity, H5F_ACC_RDONLY);
-        solution = file.openGroup(group_name_velocity);
-        dataset = solution.openDataSet(velocity_dataset);
-        dataset.read(velocity, H5T_NATIVE_DOUBLE);
-        
-        dataset.close();
-        solution.close();
-        dataspace.close();
-        file.close();
-
-        // Read in all nodal velocities to velocity_vector
-        for(int i = 0; i<verticies_dim0; i++)
-        {velocity_vector.push_back(make_verticie(velocity[(i*3)], velocity[(i*3)+1],velocity[(i*3)+2]));}
-        return 0;
-    }
-
-    int deffineMesh()
-    {
-        // Add verticies to unstructured grid
-        double point[3], velocity[3];
-        for(int i = 0; i<verticie_vector.size(); i++)
-        {
-            point[0] = verticie_vector[i][0];
-            point[1] = verticie_vector[i][1];
-            point[2] = verticie_vector[i][2];
-            points->SetPoint(i, point);
-            velocity[0] = velocity_vector[i][0];
-            velocity[1] = velocity_vector[i][1];
-            velocity[2] = velocity_vector[i][2];
-            double vmag = std::sqrt(std::pow(velocity_vector[i][0], 2)+std::pow(velocity_vector[i][0], 2)+std::pow(velocity_vector[i][0], 2));
-            velocityArray->SetTuple(i, velocity);
-            velocityMagnitudeArray->SetValue(i, vmag);
-        }
-
-        unstructuredGrid->SetPoints(points);
-        unstructuredGrid->GetPointData()->AddArray(velocityArray);
-        unstructuredGrid->GetPointData()->AddArray(velocityMagnitudeArray);
-        unstructuredGrid->GetPointData()->SetActiveScalars("u_mag");
-        
-        velocityArray->Delete();
-        velocityMagnitudeArray->Delete();
-        points->Delete();
-        
-        
-        int *outputCellTypes = new int[cells_dim0];
-        int outputCellType = VTK_TETRA;
-        int nodesPerTet = 4;
-        vtkIdType pointId;
-        for(int i =  0; i<cell_vector.size(); i++)
-        {
-            vtkCells->InsertNextCell(nodesPerTet);
-            for(int j = 0; j<nodesPerTet; j++)
-            {
-                pointId = cell_vector[i][j];
-                vtkCells->InsertCellPoint(pointId);
-            }
-            outputCellTypes[i] = outputCellType;
-        }
-
-        unstructuredGrid->SetCells(outputCellTypes, vtkCells);
-        vtkCells->Delete();
-        delete outputCellTypes;
-        
-        //unstructuredGrid->Print(std::cout);
-        return 0;
-    }
-
-    int renderMesh()
-    {
-        // Define a lut
-        
-        lut1->SetHueRange(.667, 0);
-
-        
-        mapper->SetInputData(unstructuredGrid);
-        mapper->SetLookupTable(lut1);
-        mapper->SetColorModeToMapScalars();
-
-        
-        actor->SetMapper(mapper);
-
-        // Create a renderer, render window, and interactor
-        
-        renderer->AddActor(actor);
-        renderer->SetBackground(0.187, 0.808, 0.420);
-
-        
-        renderWindow->AddRenderer(renderer);
-        renderWindow->SetSize(350, 500);
-        renderWindow->SetWindowName("eins_oct_siben_gang");
-
-        // Add the actor to the scene
-        
-        renderer->ResetCamera();
-        vtkCamera *camera = renderer->GetActiveCamera();
-        camera->Elevation(-80.0);
-        camera->OrthogonalizeViewUp();
-        camera->Azimuth(135.0);
-
-        
-        renderWindowInteractor->SetRenderWindow(renderWindow);
-        renderWindow->Render();
-        renderWindowInteractor->Initialize();
-        renderWindowInteractor->Start();
-
-        return EXIT_SUCCESS;
-    }
-
 };
 
 int main(void){
+    double start_time, end_time;
+    int problemSize = 10;
     meshReader mesh1;
     mesh1.coolSaying();
     mesh1.readVerticies();
     mesh1.readCells();
     mesh1.readVelocity();
     mesh1.coolSaying();
-    mesh1.constructLSMatricies(187);
-    //mesh1.checkConnectivity();
-    //mesh1.getVetexConnectivity(136384);
+
+    start_time = getElapsedTime();
+    for(int i = 0; i<problemSize; i++)
+    {
+        mesh1.constructLSMatricies(i);
+    }
+    end_time = getElapsedTime();
+    std::cout << "Sequential Code Took: " << end_time - start_time << std::endl;
+    start_time = getElapsedTime();
+    omp_set_dynamic(0);     // Explicitly disable dynamic teams
+    omp_set_num_threads(4); // Use 4 threads for all consecutive parallel regions
+    #pragma omp for
+    for(int i = 0; i<problemSize; i++)
+    {
+        mesh1.constructLSMatricies(i);
+    }
+    end_time = getElapsedTime();
+    std::cout << "Parallel Code Took: " << end_time - start_time << std::endl;
     return 0; // successfully terminated
 }
