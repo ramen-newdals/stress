@@ -42,10 +42,13 @@ set(VMTK_DIR "/home/ramen_newdals/graphics/vmtk_build/VMTK-Build")
 find_package(VMTK)
 
 
+#========EIGEN CONFIGURATION=======================
+find_package (Eigen3 3.3 REQUIRED NO_MODULE)
+
 #========Compiling Executable======================
 message("we are in the beam")
 message(${HDF5_INCLUDE_DIR})
 
 add_executable(readMesh readMesh.cpp)
-
-target_link_libraries (readMesh PRIVATE ${LINK_LIBS})
+add_compile_options(-02)
+target_link_libraries (readMesh PRIVATE ${LINK_LIBS} Eigen3::Eigen)
