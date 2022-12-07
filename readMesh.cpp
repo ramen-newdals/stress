@@ -205,7 +205,7 @@ public:
         return connectivityVerticies;
     }
 
-    int constructLSMatricies(int vertexNum)
+    void constructLSMatricies(int vertexNum)
     {
         std::vector<int> vertexConnectivity = getVetexConnectivity(vertexNum);
         Eigen::MatrixXd A(vertexConnectivity.size(), 10);
@@ -254,12 +254,12 @@ public:
         A_F = A_T*W*A;
         b = A_T*W*F;
         x = A_F.colPivHouseholderQr().solve(b);
+        std::cout << "Hello From: " << omp_get_thread_num() << std::endl;
         // std::cout << "A is:" << std::endl << A_F << std::endl;
         // std::cout << "b is:" << std::endl << b << std::endl;
         // std::cout << "The solution is:" << std::endl << x << endl;
 
         // std::cout << "grad_u[0] ~= " << (2*verticie_vector[vertexNum][0]*x[0]) + (x[3]*verticie_vector[vertexNum][1]*verticie_vector[vertexNum][2]) + (x[4]*verticie_vector[vertexNum][1]) + (x[5]*verticie_vector[vertexNum][2]) + (x[7]) << std::endl;
-        return 0;
     }
 
     int solveLSMatricies()
@@ -287,34 +287,99 @@ public:
         return 0;
     }
 
+    void readMesh()
+    {
+        readVerticies();
+        readCells();
+        readVelocity();
+    }
 };
 
-int main(void){
-    double start_time, end_time;
-    int problemSize = 10;
-    meshReader mesh1;
-    mesh1.coolSaying();
-    mesh1.readVerticies();
-    mesh1.readCells();
-    mesh1.readVelocity();
-    mesh1.coolSaying();
+void printThrread()
+{
+    std::cout << omp_get_thread_num() << std::endl;
+}
 
-    start_time = getElapsedTime();
-    for(int i = 0; i<problemSize; i++)
+void constructLSMatricies()
+{
+    Eigen::MatrixXd A(5, 5);
+    Eigen::VectorXd b(5);
+    Eigen::VectorXd x(5);
+    double avg_length=0;
+    int i, j;
+    for(i = 0; i<5; i++)
     {
-        mesh1.constructLSMatricies(i);
+        b(i) = i;
+        for(j = 0; j<5; j++)
+        {
+            A(i, j) = i*j;
+        }
     }
-    end_time = getElapsedTime();
-    std::cout << "Sequential Code Took: " << end_time - start_time << std::endl;
+    x = A.colPivHouseholderQr().solve(b);
+    //std::cout << "Hello From: " << omp_get_thread_num() << std::endl;
+}
+
+double readMesh(int numTrials)
+{
+    double start_time, end_time, avg_time=0;
+    for(int i = 0; i<numTrials; i++)
+    {
+        meshReader mesh1;
+        start_time = getElapsedTime();
+        mesh1.readMesh();
+        end_time = getElapsedTime();
+        avg_time += (end_time - start_time);
+    }
+    return (avg_time/numTrials);
+}
+
+
+std::vector<float> compareParallelSerial()
+{
+    double start_time, end_time;
+    int i;
+    std::vector<float> solutionTimes; 
     start_time = getElapsedTime();
-    omp_set_dynamic(0);     // Explicitly disable dynamic teams
     omp_set_num_threads(4); // Use 4 threads for all consecutive parallel regions
-    #pragma omp for
-    for(int i = 0; i<problemSize; i++)
+    #pragma omp parallel
+    for(i = 0; i<8; i++)
+    {constructLSMatricies();}
+    end_time = getElapsedTime();
+    std::cout << "Parallel Sollution Took: " << end_time - start_time << std::endl;
+    solutionTimes.push_back((end_time-start_time));
+    start_time = getElapsedTime();
+    for(int i=0; i<8; i++)
+    {constructLSMatricies();}
+    end_time = getElapsedTime();
+    std::cout << "Serial Sollution Took: " << end_time - start_time << std::endl;
+    solutionTimes.push_back((end_time-start_time));
+    return solutionTimes;
+}
+
+double constructMatriciesParallel(int matrixSize)
+{
+    double start_time, end_time;
+    Eigen::MatrixXd A(matrixSize, matrixSize);
+    start_time = getElapsedTime();
+    #pragma omp parallel
+    for(int i = 0; i<matrixSize; i++)
     {
-        mesh1.constructLSMatricies(i);
+        for(int j = 0; j<matrixSize; j++)
+        {
+            A(i, j) = i*j;
+        }
     }
     end_time = getElapsedTime();
-    std::cout << "Parallel Code Took: " << end_time - start_time << std::endl;
+    run_time += (end_time - start_time)
+    return run_time;
+}
+
+int main(void)
+{
+    // Reading Mesh Performance Analysis
+    std::cout << "Reading Mesh Took : " << readMesh(10) << "Seconds" << std::endl;    
+    std::cout << "==============================================================" << std::endl;
+    // Matrix Construction Performance
+    
     return 0; // successfully terminated
 }
