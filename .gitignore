@@ -1,4 +1,4 @@
 build/*
 mesh.txt
-data/*
+data_primatives/*
 solutionData.h5

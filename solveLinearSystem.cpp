@@ -1,98 +1,78 @@
-#include "vtkvmtkOpenNLLinearSystemSolver.h"
-#include "vtkObjectFactory.h"
+#include<iostream>
+#include<math.h>
+using namespace std;
+int main()
 
-extern "C" 
 {
-#include "nl.h"
-}
-
-
-vtkStandardNewMacro(vtkvmtkOpenNLLinearSystemSolver);
-
-vtkvmtkOpenNLLinearSystemSolver::vtkvmtkOpenNLLinearSystemSolver()
-{
-  this->SolverType = VTK_VMTK_OPENNL_SOLVER_CG;
-  this->PreconditionerType = VTK_VMTK_OPENNL_PRECONDITIONER_NONE;
-  this->Omega = 0.0;
-}
-
-int vtkvmtkOpenNLLinearSystemSolver::Solve()
-{
-  vtkvmtkSparseMatrix *system;
-  vtkvmtkDoubleVector *solution, *rhs;
-
-  if (this->Superclass::Solve()==-1)
+    int i,j,k,n;
+    
+    cout<<"\nEnter the no. of equations: ";        
+    cin>>n;
+    
+    /* if no of equations are n then size of augmented matrix will be n*n+1. So here we are declaring 2d array 'mat' of size n+n+1 */
+    float mat[n][n+1];
+    
+    /* for n equations there will be n unknowns which will be stored in array 'res' */
+    float res[n];
+   
+    cout<<"\nEnter the elements of the augmented matrix: ";
+    for(i=0;i<n;i++)
     {
-    return -1;
+      for(j=0;j<n+1;j++)
+    {
+      mat[i][j] = i*j; 
+    }    
     }
   
-  system = this->LinearSystem->GetA();
-  rhs = this->LinearSystem->GetB();
-  solution = this->LinearSystem->GetX();
-
-  nlNewContext();
-
-  nlSolverParameteri(NL_SOLVER,NL_CG);
-
-  switch (this->SolverType)
-    {
-    case VTK_VMTK_OPENNL_SOLVER_CG:
-      nlSolverParameteri(NL_SOLVER,NL_CG);
-      break;
-    case VTK_VMTK_OPENNL_SOLVER_BICGSTAB:
-      nlSolverParameteri(NL_SOLVER,NL_BICGSTAB);
-      break;
-    case VTK_VMTK_OPENNL_SOLVER_GMRES:
-      nlSolverParameteri(NL_SOLVER,NL_GMRES);
-      break;
-    }
- 
-  switch (this->PreconditionerType)
-    {
-    case VTK_VMTK_OPENNL_PRECONDITIONER_NONE:
-      nlSolverParameteri(NL_PRECONDITIONER,NL_PRECOND_NONE);
-      break;
-    case VTK_VMTK_OPENNL_PRECONDITIONER_JACOBI:
-      nlSolverParameteri(NL_PRECONDITIONER,NL_PRECOND_JACOBI);
-      break;
-    case VTK_VMTK_OPENNL_PRECONDITIONER_SSOR:
-      nlSolverParameteri(NL_PRECONDITIONER,NL_PRECOND_SSOR);
-      break;
-    }
-
-  nlSolverParameteri(NL_NB_VARIABLES,rhs->GetNumberOfElements());
-  nlSolverParameteri(NL_LEAST_SQUARES,NL_FALSE);
-  nlSolverParameteri(NL_MAX_ITERATIONS,this->MaximumNumberOfIterations);
-  nlSolverParameterd(NL_THRESHOLD,this->ConvergenceTolerance);
-
-  nlBegin(NL_SYSTEM);
-  nlBegin(NL_MATRIX);
-
-  int i, j;
-  for (i=0; i<system->GetNumberOfRows(); i++)
-    {
-    nlRowParameterd(NL_RIGHT_HAND_SIDE,-rhs->GetElement(i));
-    vtkvmtkSparseMatrixRow* row = system->GetRow(i);
-    nlBegin(NL_ROW);
-    for (j=0; j<row->GetNumberOfElements(); j++)
-      {
-      nlCoefficient(row->GetElementId(j),row->GetElement(j));
+    for(i=0;i<n;i++) 
+    {                   
+        for(j=i+1;j<n;j++)
+        {
+            if(abs(mat[i][i]) < abs(mat[j][i]))
+            {
+                for(k=0;k<n+1;k++)
+                {
+                    /* swapping mat[i][k] and mat[j][k] */
+        mat[i][k]=mat[i][k]+mat[j][k];
+                    mat[j][k]=mat[i][k]-mat[j][k];
+                    mat[i][k]=mat[i][k]-mat[j][k];
+                }
+            }
       }
-    nlCoefficient(i,row->GetDiagonalElement());
-    nlEnd(NL_ROW);
     }
-
-  nlEnd(NL_MATRIX);
-  nlEnd(NL_SYSTEM);
-  nlSolve();
-
-  for (i=0; i<solution->GetNumberOfElements(); i++)
+   
+     /* performing Gaussian elimination */
+    for(i=0;i<n-1;i++)
     {
-    solution->SetElement(i,nlGetVariable(i));
+        for(j=i+1;j<n;j++)
+        {
+            float f=mat[j][i]/mat[i][i];
+            for(k=0;k<n+1;k++)
+            {
+              mat[j][k]=mat[j][k]-f*mat[i][k];
+      }
+        }
     }
-
-  nlDeleteContext(nlGetCurrent());
-
-  return 0;
-} 
-
+    /* Backward substitution for discovering values of unknowns */
+    for(i=n-1;i>=0;i--)          
+    {                     
+        res[i]=mat[i][n];
+                    
+        for(j=i+1;j<n;j++)
+        {
+          if(i!=j)
+          {
+              res[i]=res[i]-mat[i][j]*res[j];
+    }          
+  }
+  res[i]=res[i]/mat[i][i];  
+    }
+    
+    cout<<"\nThe values of unknowns for the above equations=>\n";
+    for(i=0;i<n;i++)
+    {
+      cout<<res[i]<<"\n";
+    }
+      
+    return 0;
+}

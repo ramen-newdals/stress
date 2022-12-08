@@ -358,10 +358,24 @@ std::vector<float> compareParallelSerial()
 
 double constructMatriciesParallel(int matrixSize)
 {
-    double start_time, end_time;
-    Eigen::MatrixXd A(matrixSize, matrixSize);
+    double start_time, end_time, run_time;
+    double *A = (double*)malloc(sizeof(double)*(matrixSize*matrixSize));
     start_time = getElapsedTime();
     #pragma omp parallel
+    for(int i = 0; i<(matrixSize*matrixSize); i++)
+    {
+        A[i] = i*i;
+    }
+    end_time = getElapsedTime();
+    run_time = (end_time - start_time);
+    return run_time;
+}
+
+double constructMatriciesSerial(int matrixSize)
+{
+    double start_time, end_time, run_time;
+    Eigen::MatrixXd A(matrixSize, matrixSize);
+    start_time = getElapsedTime();
     for(int i = 0; i<matrixSize; i++)
     {
         for(int j = 0; j<matrixSize; j++)
@@ -370,16 +384,27 @@ double constructMatriciesParallel(int matrixSize)
         }
     }
     end_time = getElapsedTime();
-    run_time += (end_time - start_time)
+    run_time = (end_time - start_time);
     return run_time;
 }
 
 int main(void)
 {
     // Reading Mesh Performance Analysis
-    std::cout << "Reading Mesh Took : " << readMesh(10) << "Seconds" << std::endl;    
-    std::cout << "==============================================================" << std::endl;
+    // std::cout << "Reading Mesh Took : " << readMesh(10) << "Seconds" << std::endl;    
+    // std::cout << "==============================================================" << std::endl;
+
     // Matrix Construction Performance
-    
+    int matrixSize = 1000;
+    int numTrials = 10;
+    double parallel_avg_time=0, serial_avg_time=0;
+    omp_set_num_threads(4);
+    for(int trial_num=0; trial_num<numTrials; trial_num++)
+    {
+        parallel_avg_time += constructMatriciesParallel(matrixSize);
+        serial_avg_time += constructMatriciesSerial(matrixSize);
+    }
+    std::cout << "Parallel Assembly Took: " << (parallel_avg_time/numTrials) << " (s) with " << matrixSize << " Elements" << std::endl;
+    std::cout << "Serial Assembly Took: " << (serial_avg_time/numTrials) << " (s) with " << matrixSize << " Elements" << std::endl;
     return 0; // successfully terminated
 }
