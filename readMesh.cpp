@@ -300,17 +300,17 @@ void printThrread()
     std::cout << omp_get_thread_num() << std::endl;
 }
 
-void constructLSMatricies()
+void constructLSMatricies(int matrixSize)
 {
-    Eigen::MatrixXd A(5, 5);
-    Eigen::VectorXd b(5);
-    Eigen::VectorXd x(5);
+    Eigen::MatrixXd A(matrixSize, matrixSize);
+    Eigen::VectorXd b(matrixSize);
+    Eigen::VectorXd x(matrixSize);
     double avg_length=0;
     int i, j;
-    for(i = 0; i<5; i++)
+    for(i = 0; i<matrixSize; i++)
     {
         b(i) = i;
-        for(j = 0; j<5; j++)
+        for(j = 0; j<matrixSize; j++)
         {
             A(i, j) = i*j;
         }
@@ -343,13 +343,13 @@ std::vector<float> compareParallelSerial()
     omp_set_num_threads(4); // Use 4 threads for all consecutive parallel regions
     #pragma omp parallel
     for(i = 0; i<8; i++)
-    {constructLSMatricies();}
+    {constructLSMatricies(10);}
     end_time = getElapsedTime();
     std::cout << "Parallel Sollution Took: " << end_time - start_time << std::endl;
     solutionTimes.push_back((end_time-start_time));
     start_time = getElapsedTime();
     for(int i=0; i<8; i++)
-    {constructLSMatricies();}
+    {constructLSMatricies(10);}
     end_time = getElapsedTime();
     std::cout << "Serial Sollution Took: " << end_time - start_time << std::endl;
     solutionTimes.push_back((end_time-start_time));
@@ -388,6 +388,58 @@ double constructMatriciesSerial(int matrixSize)
     return run_time;
 }
 
+double calcWSS_Parallel(int numPoints, int numThreads)
+{
+    double start_time, end_time;
+    int i, j, k;
+    double *wallShearRate = (double*)malloc(sizeof(double)*3);
+    double *wallShearRateArray = (double*)malloc(sizeof(double)*(3*numPoints));
+    double *shearVector = (double*)malloc(sizeof(double)*3);
+    double *strainRateTensor = (double*)malloc(sizeof(double)*9);
+    double *normal = (double*)malloc(sizeof(double)*3);
+    double normalShear;
+    //initialize Strain rate tensor
+    for(i = 0; i<9; i++)
+    {strainRateTensor[i] = i*i;}
+    //Initialize norrmal vector
+    for(i = 0; i<3; i++)
+    {normal[i]=0.33;}
+    omp_set_num_threads(numThreads);
+    start_time = getElapsedTime();
+
+}
+
+double calcStrainRate_Parallel(int numPoints, int numThreads)
+{
+    double start_time, end_time;
+    double *strainRateTensor = (double*)malloc(sizeof(double)*9);
+    double *strainRateTensorArray = (double*)malloc(sizeof(double)*9*numPoints);
+    double *velocityGradient = (double*)malloc(sizeof(double)*9);
+    for(int i = 0; i<9; i++)
+    {
+        velocityGradient[i] = i*i;
+    }
+    start_time = getElapsedTime();
+    omp_set_num_threads(numThreads);
+    #pragma omp parallel
+    for(int i=0; i<numPoints; i++)
+    {
+        for (int j=0; j<3; j++)
+        {
+            for (int k=0; k<3; k++)
+            {
+                strainRateTensor[3*j + k] = 0.5 * (velocityGradient[3*j + k] + velocityGradient[3*k + j]);
+            }
+        }
+        for(int k = 0; k<9; k++)
+        {
+            strainRateTensorArray[(i*9)+k] = strainRateTensor[k];
+        }
+    }
+    end_time = getElapsedTime();
+    return (end_time - start_time);
+}
+
 int main(void)
 {
     // Reading Mesh Performance Analysis
@@ -395,10 +447,10 @@ int main(void)
     // std::cout << "==============================================================" << std::endl;
 
     // Matrix Construction Performance
-    int matrixSize = 1000;
+    int matrixSize = 10;
     int numTrials = 10;
     double parallel_avg_time=0, serial_avg_time=0;
-    omp_set_num_threads(4);
+    omp_set_num_threads(2);
     for(int trial_num=0; trial_num<numTrials; trial_num++)
     {
         parallel_avg_time += constructMatriciesParallel(matrixSize);
@@ -406,5 +458,37 @@ int main(void)
     }
     std::cout << "Parallel Assembly Took: " << (parallel_avg_time/numTrials) << " (s) with " << matrixSize << " Elements" << std::endl;
     std::cout << "Serial Assembly Took: " << (serial_avg_time/numTrials) << " (s) with " << matrixSize << " Elements" << std::endl;
+
+    int testMatrixSize=10;
+    double start_time, end_time;
+    int i;
+    std::vector<float> solutionTimes; 
+    start_time = getElapsedTime();
+    omp_set_num_threads(2); // Use 4 threads for all consecutive parallel regions
+    #pragma omp parallel
+    for(i = 0; i<8; i++)
+    {constructLSMatricies(testMatrixSize);}
+    end_time = getElapsedTime();
+    std::cout << "Parallel Sollution Took: " << end_time - start_time << std::endl;
+    solutionTimes.push_back((end_time-start_time));
+    start_time = getElapsedTime();
+    for(int i=0; i<8; i++)
+    {constructLSMatricies(testMatrixSize);}
+    end_time = getElapsedTime();
+    std::cout << "Serial Sollution Took: " << end_time - start_time << std::endl;
+    solutionTimes.push_back((end_time-start_time));
+    std::cout << solutionTimes[0] << "(Parallel), " << solutionTimes[1] << "(serial)" << std::endl;
+
+    parallel_avg_time =0;
+    serial_avg_time = 0;
+
+    for(int i = 0; i<10; i++)
+    {
+        parallel_avg_time += calcStrainRate_Parallel(10, 2);
+        serial_avg_time += calcStrainRate_Parallel(10, 1);
+    }
+    std::cout << "Parallel Took " << parallel_avg_time/10 << std:: endl;
+    std::cout << "Serial Took " << serial_avg_time/10 << std::endl;
+
     return 0; // successfully terminated
 }
